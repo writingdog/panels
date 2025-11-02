@@ -1297,8 +1297,8 @@ class serialize {
                             a_s.push(p);
                         });
                     }
-                    if(this.parents.assignments[k].wide!==false) {
-                        a_s.push("wide|"+this.parents.assignments[k].wide);
+                    if(this.parent.assignments[k].wide!==false) {
+                        a_s.push("wide|"+this.parent.assignments[k].wide);
                     }
                     ds.push(a_s.join("•"));
                 }
