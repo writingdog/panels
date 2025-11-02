@@ -972,6 +972,8 @@ class panelLogic {
         if(this.manual_assignee===artist_id) {
             // Click to exit assignment.
             this.manual_assignee = false;
+            // Unbold everyone in the unassigned list.
+            $("#unassigned_artists").children("ul").children("li").each(function() { $(this).children("span").css("font-weight","")});
             $("#assign_single_artist").hide();
             $("#assign_artists").show();
             $(".face_selector").hide();
@@ -979,12 +981,13 @@ class panelLogic {
         else {
             this.manual_assignee = artist_id;
             $("#assign_single_artist").html("Assigning artist: "+this.manual_assignee);
+            // Unbold everyone in the unassigned list.
+            $("#unassigned_artists").children("ul").children("li").each(function() { $(this).children("span").css("font-weight","")});
+            
             $("#assign_single_artist").show();
             $("#assign_artists").hide();
             $(".face_selector").show();
         }
-        
-        
         this.shadeByUse(this.manual_assignee);
     }
     async buildSections() {
