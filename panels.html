@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="initial-scale=1.0, width=device-width" />
+		<script src="./scripts/jquery-3.2.1.min.js"></script>
+		<script src="./scripts/common.js"></script>
+        <script src="./scripts/panels.js"></script>
+        <style type="text/css">
+            :root {
+                --cell-width: 6rem;
+                --df-accordion-width: 24rem; /* 2 less than cell-width */
+                --df-expandable-height: calc(100vh - 28rem);
+                --df-cell-right-offset: -2rem;
+                --border-width: .3rem;
+                --fixed-color: #89d9c1;
+                --guessed-color: #d7fbf0;
+                --border-color: #83928d;
+                --inner-border-color: #72817d44;
+                --text-color: #424a48;
+                --selected-border: #37a8ff;
+                --available-border: rgb(77, 136, 255);
+                --unused-border: rgba(0, 0, 0,0.0 );
+                --section-border: rgb(0, 179, 89);
+                --selected-artist: rgb(230, 0, 172); /*rgb(0, 153, 77);*/
+            }
+            body {
+                font-family:Arial, Helvetica, sans-serif;
+                box-sizing: border-box;
+                margin: 0rem;
+                padding: 0rem;
+                width: 100%;
+                height: 100%;
+            }
+            .show_map {
+                position: absolute;
+                top: 0rem;
+                left: 0rem;
+            }
+            .show_map_container {
+                position: absolute;
+                border: .2rem solid black;
+                overflow: hidden;
+                left: 1rem;
+                top: 1rem;
+            }
+            .node {
+                position: absolute;
+                border-radius: 50%;
+                background-color: var(--inner-border-color);
+                border-width: 0px;
+                height: 6px;
+                width: 6px;
+                left: -3px;
+                top: -3px;
+                z-index: 60;
+            }
+            .node_ring {
+                position: absolute;
+                border-radius: 50%;
+                border-color: var(--selected-border);
+                border-style: solid;
+                border-width: 4px;
+                height: 14px;
+                width: 14px;
+                left: -11px;
+                top: -11px;
+                z-index: 55;
+            }
+            .node_parent {
+                position: absolute;
+
+            }
+            .panel {
+                position: absolute;
+                background-color: #000000;
+                box-sizing:border-box;
+                z-index:15;
+            }
+            .panel_usage {
+                position: absolute;
+                /*box-sizing: border-box;*/
+                z-index:10;
+            }
+            .panel_selector {
+                position: absolute;
+                box-sizing: border-box;
+                border: 0.5px solid rgba(0,0,0,0.0);
+                z-index: 100;
+            }
+            .face_selector {
+                position: absolute;
+                box-sizing: border-box;
+                border: 0.5px solid rgba(0,0,0,0.0);
+                z-index: 100;
+            }
+            .face_selector_a {
+                position: absolute;
+                box-sizing: border-box;
+                border: 0.5px solid rgba(0,0,0,0.0);
+                z-index: 100;
+            }
+            .controls {
+                position: absolute;
+                left: 1.3rem;
+                top: 1.3rem;
+                display: flex;
+                flex-direction:row;
+            }
+            .button {
+                display: flex;
+                flex-basis: auto;
+                padding-left: 1rem;
+                padding-right: 1rem;
+                padding-top: .2rem;
+                padding-bottom: .2rem;
+                margin-right: 1rem;
+                background-color: var(--available-border);
+                position: relative;
+                z-index: 600;
+                color: #ffffff;
+                width: fit-content;
+            }
+            .load_button {
+                background-color: var(--border-color);
+            }
+            .artist_panel {
+                position: absolute;
+                right: 1rem;
+                top: 2rem;
+                height: 65%;
+                overflow-y:scroll;
+                width: 240px;
+                font-size: 10pt;
+                background-color: #ffffff;
+            }
+            .section_list {
+                position: absolute;
+                left: 2rem;
+                right: 2rem;
+                bottom: 3rem;
+                width: 90%;
+            }
+            .section_selector {
+                font-size:8pt;
+                padding: .5rem;
+                margin: .5rem;
+                display: inline-block;
+                border: 1px solid black;
+            }
+            .zoom {
+                position: absolute;
+                width: 2rem;
+                height: 2rem;
+                line-height: 2rem;
+                text-align: center;
+                font-weight: bold;
+                z-index: 500;
+                background-color: var(--border-color);
+                border: 1px solid black;
+                border-radius: 5px;
+            }
+            .face_label {
+                position: absolute;
+                left: 1rem;
+                font-size: 80%;
+                padding: .3rem;
+                background-color: #ffffff;
+                border: 1px solid black;
+                z-index: 500;
+            }
+            .label_maker {
+                width: 3rem;
+            }
+            .load_area {
+                width: 90%;
+                height: 90%;
+            }
+            
+        </style>
+        <script type="text/javascript">
+            const preload = {
+                "10_14|11_14":{"t":"h","u":"b","labels":{}},
+                "10_20|11_20":{"t":"h","u":"b","labels":{}},
+                "10_26|11_26":{"t":"h","u":"b","labels":{"d":"B4","u":"B50"}},
+                "11_14|12_14":{"t":"h","u":"b","labels":{}},
+                "11_20|12_20":{"t":"h","u":"b","labels":{}},
+                "11_26|12_26":{"t":"h","u":"b","labels":{"d":"B5","u":"B49"}},
+                "12_14|13_14":{"t":"h","u":"b","labels":{}},
+                "12_20|13_20":{"t":"h","u":"b","labels":{}},
+                "12_26|13_26":{"t":"h","u":"b","labels":{"d":"B6","u":"B48"}},
+                "13_13|13_14":{"t":"v","u":"b","labels":{}},
+                "13_14|13_15":{"t":"v","u":"b","labels":{}},
+                "13_14|14_14":{"t":"h","u":"b","labels":{}},
+                "13_19|13_20":{"t":"v","u":"b","labels":{}},
+                "13_20|13_21":{"t":"v","u":"b","labels":{}},
+                "13_20|14_20":{"t":"h","u":"b","labels":{}},
+                "13_25|13_26":{"t":"v","u":"b","labels":{"r":"B46","l":"B47"}},
+                "13_26|13_27":{"t":"v","u":"b","labels":{"l":"B7","r":"B8"}},
+                "13_26|14_26":{"t":"h","u":"b","labels":{"d":"B9","u":"B45"}},
+                "14_14|15_14":{"t":"h","u":"b","labels":{}},
+                "14_20|15_20":{"t":"h","u":"b","labels":{}},
+                "14_26|15_26":{"t":"h","u":"b","labels":{"d":"B10","u":"B44"}},
+                "15_14|16_14":{"t":"h","u":"b","labels":{}},
+                "15_20|16_20":{"t":"h","u":"b","labels":{}},
+                "15_26|16_26":{"t":"h","u":"b","labels":{"d":"B11","u":"B43"}},
+                "16_14|17_14":{"t":"h","u":"b","labels":{}},
+                "16_20|17_20":{"t":"h","u":"b","labels":{}},
+                "16_26|17_26":{"t":"h","u":"b","labels":{"d":"B12","u":"B42"}},
+                "17_13|17_14":{"t":"v","u":"b","labels":{}},
+                "17_14|17_15":{"t":"v","u":"b","labels":{}},
+                "17_14|18_14":{"t":"h","u":"b","labels":{}},
+                "17_19|17_20":{"t":"v","u":"b","labels":{}},
+                "17_20|17_21":{"t":"v","u":"b","labels":{}},
+                "17_20|18_20":{"t":"h","u":"b","labels":{}},
+                "17_25|17_26":{"t":"v","u":"b","labels":{"r":"B40","l":"B41"}},
+                "17_26|17_27":{"t":"v","u":"b","labels":{"l":"B13","r":"B14"}},
+                "17_26|18_26":{"t":"h","u":"b","labels":{"d":"B15","u":"B39"}},
+                "18_14|19_14":{"t":"h","u":"b","labels":{}},
+                "18_20|19_20":{"t":"h","u":"b","labels":{}},
+                "18_26|19_26":{"t":"h","u":"b","labels":{"d":"B16","u":"B38"}},
+                "19_14|20_14":{"t":"h","u":"b","labels":{}},
+                "19_20|20_20":{"t":"h","u":"b","labels":{}},
+                "19_26|20_26":{"t":"h","u":"b","labels":{"d":"B17","u":"B37"}},
+                "2_22|3_22":{"t":"h","u":"b","labels":{}},
+                "2_26|3_26":{"t":"h","u":"b","labels":{}},
+                "2_30|3_30":{"t":"h","u":"b","labels":{}},
+                "20_14|21_14":{"t":"h","u":"b","labels":{}},
+                "20_20|21_20":{"t":"h","u":"b","labels":{}},
+                "20_26|21_26":{"t":"h","u":"b","labels":{"d":"B18","u":"B36"}},
+                "21_13|21_14":{"t":"v","u":"b","labels":{}},
+                "21_14|21_15":{"t":"v","u":"b","labels":{}},
+                "21_14|22_14":{"t":"h","u":"b","labels":{}},
+                "21_19|21_20":{"t":"v","u":"b","labels":{}},
+                "21_20|21_21":{"t":"v","u":"b","labels":{}},
+                "21_20|22_20":{"t":"h","u":"b","labels":{}},
+                "21_25|21_26":{"t":"v","u":"b","labels":{"r":"B34","l":"B35"}},
+                "21_26|21_27":{"t":"v","u":"b","labels":{"l":"B19","r":"B20"}},
+                "21_26|22_26":{"t":"h","u":"b","labels":{"d":"B21","u":"B33"}},
+                "22_14|23_14":{"t":"h","u":"b","labels":{}},
+                "22_20|23_20":{"t":"h","u":"b","labels":{}},
+                "22_26|23_26":{"t":"h","u":"b","labels":{"d":"B23","u":"B32"}},
+                "23_14|24_14":{"t":"h","u":"b","labels":{}},
+                "23_20|24_20":{"t":"h","u":"b","labels":{}},
+                "23_26|24_26":{"t":"h","u":"b","labels":{"d":"B24","u":"B31"}},
+                "24_14|25_14":{"t":"h","u":"b","labels":{}},
+                "24_20|25_20":{"t":"h","u":"b","labels":{}},
+                "24_26|25_26":{"t":"h","u":"b","labels":{"d":"B25","u":"B30"}},
+                "25_13|25_14":{"t":"v","u":"b","labels":{}},
+                "25_14|25_15":{"t":"v","u":"b","labels":{}},
+                "25_19|25_20":{"t":"v","u":"b","labels":{}},
+                "25_20|25_21":{"t":"v","u":"b","labels":{}},
+                "25_25|25_26":{"t":"v","u":"b","labels":{"r":"B28","l":"B29"}},
+                "25_26|25_27":{"t":"v","u":"b","labels":{"l":"B26","r":"B27"}},
+                "25_4|25_5":{"t":"v","u":"r","labels":{}},
+                "25_4|26_4":{"t":"h","u":"d","labels":{}},
+                "25_8|25_9":{"t":"v","u":"b","labels":{}},
+                "25_9|25_10":{"t":"v","u":"b","labels":{}},
+                "25_9|26_9":{"t":"h","u":"b","labels":{}},
+                "26_4|27_4":{"t":"h","u":"d","labels":{}},
+                "26_9|27_9":{"t":"h","u":"b","labels":{}},
+                "27_13|27_14":{"t":"v","u":"b","labels":{}},
+                "27_14|27_15":{"t":"v","u":"b","labels":{}},
+                "27_14|28_14":{"t":"h","u":"b","labels":{}},
+                "27_19|27_20":{"t":"v","u":"b","labels":{}},
+                "27_20|27_21":{"t":"v","u":"b","labels":{}},
+                "27_20|28_20":{"t":"h","u":"b","labels":{}},
+                "27_25|27_26":{"t":"v","u":"b","labels":{"r":"B113","l":"B114"}},
+                "27_26|27_27":{"t":"v","u":"b","labels":{"l":"B54","r":"B55"}},
+                "27_26|28_26":{"t":"h","u":"b","labels":{"d":"B56","u":"B112"}},
+                "27_4|28_4":{"t":"h","u":"d","labels":{}},
+                "27_9|28_9":{"t":"h","u":"b","labels":{}},
+                "28_14|29_14":{"t":"h","u":"b","labels":{}},
+                "28_20|29_20":{"t":"h","u":"b","labels":{}},
+                "28_26|29_26":{"t":"h","u":"b","labels":{"d":"B57","u":"B111"}},
+                "28_4|29_4":{"t":"h","u":"d","labels":{}},
+                "28_9|29_9":{"t":"h","u":"b","labels":{}},
+                "29_14|30_14":{"t":"h","u":"b","labels":{}},
+                "29_20|30_20":{"t":"h","u":"b","labels":{}},
+                "29_26|30_26":{"t":"h","u":"b","labels":{"d":"B58","u":"B110"}},
+                "29_4|29_5":{"t":"v","u":"b","labels":{}},
+                "29_4|30_4":{"t":"h","u":"d","labels":{}},
+                "29_8|29_9":{"t":"v","u":"b","labels":{}},
+                "29_9|29_10":{"t":"v","u":"b","labels":{}},
+                "29_9|30_9":{"t":"h","u":"b","labels":{}},
+                "3_22|3_23":{"t":"v","u":"b","labels":{}},
+                "3_22|4_22":{"t":"h","u":"b","labels":{}},
+                "3_23|3_24":{"t":"v","u":"b","labels":{}},
+                "3_24|3_25":{"t":"v","u":"b","labels":{}},
+                "3_25|3_26":{"t":"v","u":"b","labels":{}},
+                "3_26|3_27":{"t":"v","u":"b","labels":{}},
+                "3_26|4_26":{"t":"h","u":"b","labels":{}},
+                "3_27|3_28":{"t":"v","u":"b","labels":{}},
+                "3_28|3_29":{"t":"v","u":"b","labels":{}},
+                "3_29|3_30":{"t":"v","u":"b","labels":{}},
+                "3_30|4_30":{"t":"h","u":"b","labels":{}},
+                "30_14|31_14":{"t":"h","u":"b","labels":{}},
+                "30_20|31_20":{"t":"h","u":"b","labels":{}},
+                "30_26|31_26":{"t":"h","u":"b","labels":{"d":"B59","u":"B109"}},
+                "30_4|31_4":{"t":"h","u":"d","labels":{}},
+                "30_9|31_9":{"t":"h","u":"b","labels":{}},
+                "31_13|31_14":{"t":"v","u":"b","labels":{}},
+                "31_14|31_15":{"t":"v","u":"b","labels":{}},
+                "31_14|32_14":{"t":"h","u":"b","labels":{}},
+                "31_19|31_20":{"t":"v","u":"b","labels":{}},
+                "31_20|31_21":{"t":"v","u":"b","labels":{}},
+                "31_20|32_20":{"t":"h","u":"b","labels":{}},
+                "31_25|31_26":{"t":"v","u":"b","labels":{"r":"B107","l":"B108"}},
+                "31_26|31_27":{"t":"v","u":"b","labels":{"l":"B60","r":"B61"}},
+                "31_26|32_26":{"t":"h","u":"b","labels":{"d":"B62","u":"B106"}},
+                "31_4|32_4":{"t":"h","u":"d","labels":{}},
+                "31_9|32_9":{"t":"h","u":"b","labels":{}},
+                "32_14|33_14":{"t":"h","u":"b","labels":{}},
+                "32_20|33_20":{"t":"h","u":"b","labels":{}},
+                "32_26|33_26":{"t":"h","u":"b","labels":{"d":"B63","u":"B105"}},
+                "32_4|33_4":{"t":"h","u":"d","labels":{}},
+                "32_9|33_9":{"t":"h","u":"b","labels":{}},
+                "33_14|34_14":{"t":"h","u":"b","labels":{}},
+                "33_20|34_20":{"t":"h","u":"b","labels":{}},
+                "33_26|34_26":{"t":"h","u":"b","labels":{"d":"B64","u":"B104"}},
+                "33_4|33_5":{"t":"v","u":"b","labels":{}},
+                "33_4|34_4":{"t":"h","u":"d","labels":{}},
+                "33_8|33_9":{"t":"v","u":"b","labels":{}},
+                "33_9|33_10":{"t":"v","u":"b","labels":{}},
+                "34_14|35_14":{"t":"h","u":"b","labels":{}},
+                "34_20|35_20":{"t":"h","u":"b","labels":{}},
+                "34_26|35_26":{"t":"h","u":"b","labels":{"d":"B65","u":"B103"}},
+                "34_4|35_4":{"t":"h","u":"d","labels":{}},
+                "35_13|35_14":{"t":"v","u":"b","labels":{}},
+                "35_14|35_15":{"t":"v","u":"b","labels":{}},
+                "35_14|36_14":{"t":"h","u":"b","labels":{}},
+                "35_19|35_20":{"t":"v","u":"b","labels":{}},
+                "35_20|35_21":{"t":"v","u":"b","labels":{}},
+                "35_20|36_20":{"t":"h","u":"b","labels":{}},
+                "35_25|35_26":{"t":"v","u":"b","labels":{"r":"B101","l":"B102"}},
+                "35_26|35_27":{"t":"v","u":"b","labels":{"l":"B66","r":"B67"}},
+                "35_26|36_26":{"t":"h","u":"b","labels":{"d":"B68","u":"B100"}},
+                "35_4|36_4":{"t":"h","u":"d","labels":{}},
+                "36_14|37_14":{"t":"h","u":"b","labels":{}},
+                "36_20|37_20":{"t":"h","u":"b","labels":{}},
+                "36_26|37_26":{"t":"h","u":"b","labels":{"d":"B69","u":"B99"}},
+                "36_4|37_4":{"t":"h","u":"d","labels":{}},
+                "37_14|38_14":{"t":"h","u":"b","labels":{}},
+                "37_20|38_20":{"t":"h","u":"b","labels":{}},
+                "37_26|38_26":{"t":"h","u":"b","labels":{"d":"B70","u":"B98"}},
+                "37_4|38_4":{"t":"h","u":"d","labels":{}},
+                "38_14|39_14":{"t":"h","u":"b","labels":{}},
+                "38_20|39_20":{"t":"h","u":"b","labels":{}},
+                "38_26|39_26":{"t":"h","u":"b","labels":{"d":"B80","u":"B97"}},
+                "38_4|39_4":{"t":"h","u":"d","labels":{}},
+                "38_9|39_9":{"t":"h","u":"u","labels":{}},
+                "39_13|39_14":{"t":"v","u":"b","labels":{}},
+                "39_14|39_15":{"t":"v","u":"b","labels":{}},
+                "39_14|40_14":{"t":"h","u":"b","labels":{}},
+                "39_19|39_20":{"t":"v","u":"b","labels":{}},
+                "39_20|39_21":{"t":"v","u":"b","labels":{}},
+                "39_20|40_20":{"t":"h","u":"b","labels":{}},
+                "39_25|39_26":{"t":"v","u":"b","labels":{"r":"B95","l":"B96"}},
+                "39_26|39_27":{"t":"v","u":"b","labels":{"l":"B81","r":"B82"}},
+                "39_26|40_26":{"t":"h","u":"b","labels":{"d":"B83","u":"B94"}},
+                "39_4|39_5":{"t":"v","u":"l","labels":{}},
+                "39_5|39_6":{"t":"v","u":"l","labels":{}},
+                "39_6|39_7":{"t":"v","u":"l","labels":{}},
+                "39_7|39_8":{"t":"v","u":"l","labels":{}},
+                "39_8|39_9":{"t":"v","u":"l","labels":{}},
+                "40_14|41_14":{"t":"h","u":"b","labels":{}},
+                "40_20|41_20":{"t":"h","u":"b","labels":{}},
+                "40_26|41_26":{"t":"h","u":"b","labels":{"d":"B84","u":"B93"}},
+                "41_14|42_14":{"t":"h","u":"b","labels":{}},
+                "41_20|42_20":{"t":"h","u":"b","labels":{}},
+                "41_26|42_26":{"t":"h","u":"b","labels":{"d":"B85","u":"B92"}},
+                "42_14|43_14":{"t":"h","u":"b","labels":{}},
+                "42_20|43_20":{"t":"h","u":"b","labels":{}},
+                "42_26|43_26":{"t":"h","u":"b","labels":{"d":"B86","u":"B91"}},
+                "43_13|43_14":{"t":"v","u":"b","labels":{}},
+                "43_14|43_15":{"t":"v","u":"b","labels":{}},
+                "43_19|43_20":{"t":"v","u":"b","labels":{}},
+                "43_20|43_21":{"t":"v","u":"b","labels":{}},
+                "43_25|43_26":{"t":"v","u":"b","labels":{"r":"B89","l":"B90"}},
+                "43_26|43_27":{"t":"v","u":"b","labels":{"l":"B87","r":"B88"}},
+                "9_13|9_14":{"t":"v","u":"b","labels":{}},
+                "9_14|10_14":{"t":"h","u":"b","labels":{}},
+                "9_14|9_15":{"t":"v","u":"b","labels":{}},
+                "9_19|9_20":{"t":"v","u":"b","labels":{}},
+                "9_20|10_20":{"t":"h","u":"b","labels":{}},
+                "9_20|9_21":{"t":"v","u":"b","labels":{}},
+                "9_25|9_26":{"t":"v","u":"b","labels":{"r":"B52","l":"B53"}},
+                "9_26|10_26":{"t":"h","u":"b","labels":{"d":"B3","u":"B51"}},
+                "9_26|9_27":{"t":"v","u":"b","labels":{"l":"B1","r":"B2"}}
+            }
+            const preload_old = {
+                "9_8|10_8": {"t":"h","u":"b"},
+                "10_7|10_8": {"t":"v","u":"b"},
+                "10_8|11_8": {"t":"h","u":"b"},
+                "11_8|12_8": {"t":"h","u":"b"},
+                "12_8|13_8": {"t":"h","u":"b"},
+                "13_8|14_8": {"t":"h","u":"b"},
+                "14_7|14_8": {"t":"v","u":"b"},
+                "14_8|15_8": {"t":"h","u":"b"},
+                "15_8|16_8": {"t":"h","u":"b"},
+                "16_8|17_8": {"t":"h","u":"b"},
+                "17_8|18_8": {"t":"h","u":"b"},
+                "18_7|18_8": {"t":"v","u":"b"},
+                "18_8|19_8": {"t":"h","u":"b"},
+                "19_8|20_8": {"t":"h","u":"b"},
+                "20_8|21_8": {"t":"h","u":"b"},
+                "21_8|22_8": {"t":"h","u":"b"},
+                "22_7|22_8": {"t":"v","u":"l"},
+                "22_6|22_7": {"t":"v","u":"l"},
+                "22_5|22_6": {"t":"v","u":"l"},
+                "22_4|22_5": {"t":"v","u":"l"},
+                "21_4|22_4": {"t":"h","u":"d"},
+                "14_8|14_9": {"t":"v","u":"b"},
+                "18_8|18_9": {"t":"v","u":"b"},
+                "22_8|22_9": {"t":"v","u":"l"},
+                "22_9|22_10": {"t":"v","u":"l"},
+                "22_10|22_11": {"t":"v","u":"l"},
+                "22_11|22_12": {"t":"v","u":"l"},
+                "21_12|22_12": {"t":"h","u":"b"},
+                "20_12|21_12": {"t":"h","u":"b"},
+                "9_14|10_14": {"t":"h","u":"b"},
+                "10_14|11_14": {"t":"h","u":"b"},
+                "11_14|12_14": {"t":"h","u":"b"},
+                "12_14|13_14": {"t":"h","u":"b"},
+                "13_14|14_14": {"t":"h","u":"b"},
+                "10_13|10_14": {"t":"v","u":"b"},
+                "10_14|10_15": {"t":"v","u":"b"},
+                "14_13|14_14": {"t":"v","u":"b"},
+                "14_14|14_15": {"t":"v","u":"b"},
+                "22_12|22_13": {"t":"v","u":"l"}
+            }
+            let map;
+
+            function setup() {
+                map = new showMap();
+                logic = new panelLogic();
+                pan_handler = new panHandler({map:map});
+                artist_handler = new serialize({parent:logic,type:"artist",deserializer:"#load_artists"});
+                map.interactor = pan_handler;
+                logic.map = map;
+                /*
+                let panel_count = [4,6,3,5,1,2,1,1,5,4,6];
+                for(let k in panel_count) {
+                    logic.assignees.push({0:"name_"+(parseInt(k)+1),1:panel_count[k]});
+                }
+                */
+                map.logic = logic;
+                map.createMap();
+                doPreload();
+                logic.buildSections();
+                $("#add_panels").on("click",function() {
+                    map.dotDraw();
+                });
+                $("#rename_panels").on("click",function() {
+                    map.doLabels();
+                });
+                $("#get_freespace").on("click",function() {
+                    logic.buildSections();
+                });
+                $("#assign_artists").on("click",function() {
+                    logic.assignAll();
+                });
+                $("#show_map").on("mousedown",function(e) { map.interactor.mouseEvent(e); });
+                $("#show_map").on("mouseup",function(e) { map.interactor.mouseEvent(e); });
+                $("#show_map").on("mousemove",function(e) { map.interactor.mouseEvent(e); });
+                $("#assign_single_artist").on("click",function() {
+                    logic.manual_assignee = false;
+                    $("#assign_single_artist").hide();
+                    if(logic.needs_recalculation===false) {
+                        $("#assign_artists").show();
+                    }
+                    $(".face_selector").hide();
+                });
+                $("#load_new_data").on("click",function() {
+                    $("#artist_load_panel").show();
+                    $("#save_new_data").show();
+                    $("#load_new_data").hide();
+                    $("#assign_artists").hide();
+                    $("#add_panels").hide();
+                    artist_handler.serialize();
+                });
+                $("#save_new_data").on("click",function() {
+                    $("#artist_load_panel").hide();
+                    $("#save_new_data").hide();
+                    $("#load_new_data").show();
+                    $("#add_panels").show();
+                    if(logic.needs_recalculation===false) {
+                        $("#assign_artists").show();
+                    }
+                });
+                $("#zoom_in").on("click",function() { map.interactor.zoom("in")});
+                $("#zoom_out").on("click",function() { map.interactor.zoom("out")});
+                $("#assign_artists").hide();
+                $("#assign_single_artist").hide();
+
+                $("#label_entry").change(function() {
+                    map.applyLabel();
+                });
+
+                $("#save_artists").on("click",function() {
+                    artist_handler.serialize("self",true);
+                });
+
+                $("#rename_panels").hide();
+                $("#artist_load_panel").hide();
+                $("#save_new_data").hide();
+                $("#label_maker").hide();
+            }
+
+            function doPreload() {
+                for(let k in preload) {
+                    let k_a = k.split("|")[0].split("_");
+                    let k_b = k.split("|")[1].split("_");
+                    let a = {x:parseInt(k_a[0]),y:parseInt(k_a[1])};
+                    let b = {x:parseInt(k_b[0]),y:parseInt(k_b[1])};
+                    let l = {};
+                    if(preload[k].hasOwnProperty("l")) {
+                        l = preload[k].l;
+                    }
+                    else if(preload[k].hasOwnProperty("labels")) {
+                        l = preload[k].labels;
+                    }
+                    map.addPanel(a,b,preload[k].u,l);
+                }
+                artist_handler.deserialize();
+            }
+        </script>
+	</head>
+	<body onload="setup()">
+        <div class="show_map_container" id="show_map_container">
+            <div class="zoom" id="zoom_out" style="left:0.2rem; top: 2rem;">-</div>
+            <div class="zoom" id="zoom_in" style="left:0.2rem; top: 4.2rem;">+</div>
+            <div class="face_label" id="label_maker" style="left:0.2rem; top: 6.6rem;">
+                <span id="label_face"></span>
+                 label: <input type="text" id="label_entry" class="label_maker"/>
+            </div>
+            <div class="show_map" id="show_map">
+
+            </div>
+        </div>
+        <div class="controls">
+            <div class="button load_button" id="load_new_data">Load/save</div>
+            <div class="button load_button" id="save_new_data">Load/save</div>
+            <div class="button load_button" id="add_panels">Modify Layout</div>
+            <div class="button" id="rename_panels">Modify Labels</div>
+            <div class="button" id="assign_artists">Assign all artists</div>
+            <div class="button" id="assign_single_artist">Assigning artist: </div>
+            <div class="button" id="get_freespace">Recalculate free space</div>
+        </div>
+        <div class="artist_panel" id="artist_list">
+            <div class="artist_list" id="unassigned_artists"></div>
+            <div class="artist_list" id="assigned_artists"></div>
+        </div>
+        <div class="artist_panel" id="artist_load_panel">
+            <div class="button" id="load_artists" style="margin-bottom:1rem;">Load artists</div>
+            <div class="button" id="save_artists" style="margin-bottom:1rem;">Save assignments</div>
+            <textarea id="artist_predef" class="load_area">
+                name_1•4
+                name_2•6
+                name_3•3
+                name_4•5
+                name_5•1
+                name_6•2
+                name_7•1
+                name_8•1
+                name_9•5
+                name_10•4
+                name_11•6
+                name_12•6
+                name_13•1
+                name_14•3
+                name_15•4
+                name_16•1
+                name_17•2
+                name_18•2
+                name_19•2
+                name_20•1
+                name_21•1
+                name_22•1
+                name_23•2
+                name_24•1
+                name_25•2
+                name_26•3
+                name_27•3
+                name_28•4
+                name_29•2
+                name_30•2
+                name_31•3
+                name_32•2
+                name_33•2
+                name_34•2
+                name_35•4
+                name_36•8
+                name_37•2
+                name_38•4
+                name_39•6
+                name_40•3
+                name_41•2
+                name_42•2
+                name_43•3
+                name_44•4
+                name_45•6
+                name_46•1
+                name_47•2
+                name_48•4
+                name_49•4
+                name_50•4
+                name_51•2
+                name_52•1
+                name_53•1
+                name_54•1
+                name_55•1
+                name_56•2
+                name_57•2
+                name_58•3
+                name_59•4
+                name_60•1
+                name_61•2
+                name_62•3
+                name_63•1
+                name_64•1
+                name_65•4
+                name_66•5
+                name_67•1
+                name_68•4
+                name_69•5
+                name_70•2
+                name_71•2
+                name_72•3
+                name_73•4
+                name_74•1
+                name_75•1
+                name_76•2
+                name_77•3
+                name_78•2
+                name_79•4
+                name_80•1
+                name_81•2
+                name_82•4
+                name_83•6
+                name_84•6
+                name_85•6
+                name_86•1
+                name_87•1
+                name_88•2
+                name_89•3
+                name_90•1
+                name_91•2
+                name_92•1
+                name_93•1
+                name_94•3
+                name_95•4
+                name_96•2
+                name_97•3
+                name_98•2
+                name_99•2
+                name_100•2
+                name_101•2
+                name_102•2
+                name_103•2
+                name_104•1
+                name_105•1
+                name_106•2
+                name_107•2•wide|2
+                name_108•2•wide|2
+                name_109•2•wide|2
+                name_110•2
+                name_111•4
+                name_112•4
+                name_113•5
+                name_114•3
+                name_115•3
+                name_116•1
+                name_117•3
+                name_118•2
+                name_119•4
+                name_120•4
+                name_121•2
+                name_122•2
+                name_123•1
+                name_124•1
+                name_125•1
+                name_126•2
+                name_127•4
+                name_128•2
+                name_129•6
+                name_130•4
+                name_131•3
+                name_132•2
+                name_133•4
+                name_134•4
+                name_135•3
+                name_136•2
+                name_137•2
+                name_138•4
+                name_139•1
+                name_140•4
+                name_141•2
+                name_142•2
+                name_143•4
+                name_144•2
+                name_145•1
+                name_146•3
+                name_147•4
+                name_148•6
+                name_149•1
+                name_150•1
+                name_151•2
+                name_152•1
+                name_153•1
+                name_154•3
+                name_155•4
+                name_156•1
+                name_157•2
+                name_158•3•wide|3
+                name_159•1
+            </textarea>
+        </div>
+        <div class="section_list" id="section_list"></div>
+	</body>
+</html>
