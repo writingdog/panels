@@ -352,15 +352,19 @@ class showMap {
             $(this.panels[p_id].selector_obj).remove();
             $(this.panels[p_id].face_selector_a_obj).remove();
             $(this.panels[p_id].face_selector_b_obj).remove();
-            let pla = this.panels[p_id].labels[plm[c]["a"]];
-            let plb = this.panels[p_id].labels[plm[c]["b"]];
+
+            // This should have been plm["a"][c] and plm["b"][c] (i.e. the direction marker (c) of point A and point B, but was instead plm[c]["a"] which did not exist.)
+
+            let pla = this.panels[p_id].labels.hasOwnProperty(plm["a"][c]) ? this.panels[p_id].labels[plm["a"][c]] : "";
+            let plb = this.panels[p_id].labels.hasOwnProperty(plm["b"][c]) ? this.panels[p_id].labels[plm["b"][c]] : "";
+            
             if(pla!=="") {
                 delete this.face_id[pla];
-                delete this.face_names[p_id+"|"+plm[c]["a"]];
+                delete this.face_names[p_id+"|"+plm["a"][c]];
             }
             if(plb!=="") {
                 delete this.face_id[plb];
-                delete this.face_names[p_id+"|"+plm[c]["b"]];
+                delete this.face_names[p_id+"|"+plm["b"][c]];
             }
             delete this.panels[p_id];
         }
