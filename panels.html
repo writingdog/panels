@@ -20,9 +20,13 @@
                 --text-color: #424a48;
                 --selected-border: #37a8ff;
                 --available-border: rgb(77, 136, 255);
+                --created-border: rgb(55, 255, 242);
                 --unused-border: rgba(0, 0, 0,0.0 );
                 --section-border: rgb(0, 179, 89);
                 --selected-artist: rgb(230, 0, 172); /*rgb(0, 153, 77);*/
+            }
+            div {
+                user-select: none;
             }
             body {
                 font-family:Arial, Helvetica, sans-serif;
@@ -175,6 +179,31 @@
             .load_area {
                 width: 90%;
                 height: 90%;
+            }
+            .map_key {
+                display:flex;
+                position: absolute;
+                right: 1rem;
+                width: 240px;
+                font-size: 10pt;
+                top: calc(65% + 3rem);
+                flex-direction: column;
+            }
+            .key_pair {
+                display: flex;
+                flex-direction: row;
+            }
+            .key_color {
+                display: flex;
+                flex: 0 0 2rem;
+                width: 1rem;
+                height: 1rem;
+                border: .1px solid black;
+            }
+            .key_explanation {
+                display: flex;
+                padding-left: 1rem;
+                flex: 2 1 auto;
             }
             
         </style>
@@ -435,6 +464,14 @@
                 map = new showMap();
                 logic = new panelLogic();
                 pan_handler = new panHandler({map:map});
+                map.pan_handler = pan_handler;
+                document.addEventListener("drag",function(e) { console.log(e)});
+                document.addEventListener("keydown",function(e) {
+                    if(e.key==="Shift") { pan_handler.shiftHandler(e); }
+                });
+	            document.addEventListener("keyup",function(e) { 
+                    if(e.key==="Shift") { pan_handler.shiftHandler(e); }; 
+                });
                 artist_handler = new serialize({parent:logic,type:"artist",deserializer:"#load_artists"});
                 map.interactor = pan_handler;
                 logic.map = map;
@@ -527,15 +564,14 @@
         </script>
 	</head>
 	<body onload="setup()">
-        <div class="show_map_container" id="show_map_container">
+        <div class="show_map_container" id="show_map_container" draggable="false">
             <div class="zoom" id="zoom_out" style="left:0.2rem; top: 2rem;">-</div>
             <div class="zoom" id="zoom_in" style="left:0.2rem; top: 4.2rem;">+</div>
             <div class="face_label" id="label_maker" style="left:0.2rem; top: 6.6rem;">
                 <span id="label_face"></span>
                  label: <input type="text" id="label_entry" class="label_maker"/>
             </div>
-            <div class="show_map" id="show_map">
-
+            <div class="show_map" id="show_map" draggable="false">
             </div>
         </div>
         <div class="controls">
@@ -715,6 +751,28 @@
                 name_158•3•wide|3
                 name_159•1
             </textarea>
+        </div>
+        <div class="map_key" id="map_key">
+            <div class="key_pair normal_key">
+                <div class="key_color" style="background-color:var(--inner-border-color)"></div>
+                <div class="key_explanation">Unassigned panel.</div>
+            </div>
+            <div class="key_pair normal_key">
+                <div class="key_color" style="background-color:var(--created-border)"></div>
+                <div class="key_explanation">New panel, requires recalculation.</div>
+            </div>
+            <div class="key_pair normal_key">
+                <div class="key_color" style="background-color:var(--selected-border)"></div>
+                <div class="key_explanation">Allocated panel.</div>
+            </div>
+            <div class="key_pair normal_key">
+                <div class="key_color" style="background-color:var(--selected-artist)"></div>
+                <div class="key_explanation">Selected panel.</div>
+            </div>
+            <div class="key_pair build_key" style="display:none;">
+                <div class="key_color" style="background-color:var(--available-border)"></div>
+                <div class="key_explanation">Valid panel to be allocated.</div>
+            </div>
         </div>
         <div class="section_list" id="section_list"></div>
 	</body>

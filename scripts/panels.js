@@ -52,9 +52,9 @@ class showMap {
         for(let x=1;x<=this.gw;x++) {
             for(let y=1;y<=this.gh;y++) {
                 let dot_id = x + "_" + y;
-                let pdot = $("<div />",{"class":"node_parent","css":{"left":x * this.o_x,"top":y * this.o_y}});
-                let dot = $("<div />",{"class":"node","id":dot_id+"_dot"});
-                let ring = $("<div />",{"class":"node_ring","id":dot_id+"_ring"});
+                let pdot = $("<div />",{"class":"node_parent","css":{"left":x * this.o_x,"top":y * this.o_y},"attr":{"draggable":"false"}});
+                let dot = $("<div />",{"class":"node","id":dot_id+"_dot","attr":{"node_id":dot_id,"draggable":"false"}});
+                let ring = $("<div />",{"class":"node_ring","id":dot_id+"_ring","attr":{"node_id":dot_id,"draggable":"false"}});
                 if(this.sel_a!==dot_id || this.sel_b!==dot_id) {
                     // If the dot is not CURRENTLY ACTIVE, then hide it.
                     $(ring).hide();
@@ -74,6 +74,8 @@ class showMap {
     }
     showDots() {
         this.dots = true;
+        $(".normal_key").hide();
+        $(".build_key").show();
         $("#add_panels").html("Done modifying");
         $("#rename_panels").show();
         $("#assign_artists").hide();
@@ -85,6 +87,12 @@ class showMap {
     hideDots() {
         this.dots = false;
         this.labels = false;
+        // Clear selectors from the mouse logic handler
+        this.sel_a = false;
+        this.sel_b = false;
+        this.pan_handler.reset();
+        $(".normal_key").show();
+        $(".build_key").hide();
         logic.shadeByUse();
         $("#add_panels").html("Modify layout");
         $("#rename_panels").hide();
@@ -149,6 +157,7 @@ class showMap {
             else {
                 // Hopefully node_b should be false.
                 this.sel_b = {x:x,y:y};
+                console.log(this.sel_a,this.sel_b);
                 $("#"+x+"_"+y+"_ring").show();
                 // Check to see if panels are horizontal.
                 if(this.sel_b.y === this.sel_a.y) {
@@ -207,6 +216,7 @@ class showMap {
                     this.sel_a = false;
                     this.sel_b = false;
                 }
+                this.pan_handler.reset();
             }
         }
         else {
@@ -276,22 +286,22 @@ class showMap {
             p_id = p_a.x + "_" + p_a.y + "|" + p_b.x + "_" + p_b.y;
             if(this.panels.hasOwnProperty(p_id)===false) {
                 let usage_width = (this.o_x / 6.0);
-                panel = $("<div />",{"class":"panel","id":p_id,"css":{"width":(this.o_x/16.0),"height":this.o_y}});
+                panel = $("<div />",{"class":"panel","id":p_id,"css":{"width":(this.o_x/16.0),"height":this.o_y},attr:{"draggable":"false"}});
                 $(panel).css({"left":(p_a.x * this.o_x)-(this.o_x/32.0),"top":p_a.y * this.o_y});
-                panel_selector = $("<div />",{"class":"panel_selector","id":p_id+"_selector","css":{"width":(this.o_x/3.0),"height":(this.o_y*0.8)}});
+                panel_selector = $("<div />",{"class":"panel_selector","id":p_id+"_selector","css":{"width":(this.o_x/3.0),"height":(this.o_y*0.8)},attr:{"draggable":"false"}});
                 $(panel_selector).css({"left":(p_a.x * this.o_x)-(this.o_x/6.0),"top":(p_a.y * this.o_y)+(this.o_y*0.1)});
 
-                face_selector_a = $("<div />",{"class":"face_selector","id":p_id+"|l_selector","css":{"width":(this.o_x/6.0),"height":(this.o_y*0.8)}});
+                face_selector_a = $("<div />",{"class":"face_selector","id":p_id+"|l_selector","css":{"width":(this.o_x/6.0),"height":(this.o_y*0.8)},attr:{"draggable":"false"}});
                 $(face_selector_a).css({"left":(p_a.x * this.o_x)-(this.o_x/6.0),"top":(p_a.y * this.o_y)+(this.o_y*0.1)});
                 $(face_selector_a).on("click",{arg1:p_id+"|l"},function(e) { logic.manualAssign(e.data.arg1)});
                 
 
-                face_selector_b = $("<div />",{"class":"face_selector","id":p_id+"|r_selector","css":{"width":(this.o_x/6.0),"height":(this.o_y*0.8)}});
+                face_selector_b = $("<div />",{"class":"face_selector","id":p_id+"|r_selector","css":{"width":(this.o_x/6.0),"height":(this.o_y*0.8)},attr:{"draggable":"false"}});
                 $(face_selector_b).css({"left":(p_a.x * this.o_x)-(this.o_x*0.0),"top":(p_a.y * this.o_y)+(this.o_y*0.1)});
                 $(face_selector_b).on("click",{arg1:p_id+"|r"},function(e) { logic.manualAssign(e.data.arg1)});
 
                 $(panel_selector).on("click",{arg1:p_m,arg2:p_id},function(e){ e.data.arg1.changePanel(e.data.arg2)});
-                panel_usage = $("<div />",{"class":"panel_usage","id":p_id+"_usage","css":{"width":(this.o_x/16.0),"height":this.o_y}});
+                panel_usage = $("<div />",{"class":"panel_usage","id":p_id+"_usage","css":{"width":(this.o_x/16.0),"height":this.o_y},attr:{"draggable":"false"}});
                 $(panel_usage).css({"left":(p_a.x * this.o_x)-(this.o_x/32.0)-(usage_width-(this.o_y/64.0)),"top":p_a.y * this.o_y});
                 //$(panel_usage).css({"left":(p_a.x * this.o_x)-(this.o_x/24.0+3.0),"top":p_a.y * this.o_y});
                 $(panel_usage).css({"border-left-width":usage_width,"border-left-style":"solid","border-left-color":"var(--unused-border)"});
@@ -370,6 +380,7 @@ class showMap {
         }
         else {
             this.panels[p_id] = {t:c,u:u,obj:panel,use_obj:panel_usage,selector_obj:panel_selector,face_selector_a_obj:face_selector_a,face_selector_b_obj:face_selector_b,labels:l};
+            this.logic.created_sections.add(p_id);
             let ld = ["l","r","u","d"];
             for(let k in ld) {
                 let ls = l.hasOwnProperty(ld[k]) ? l[ld[k]] : "";
@@ -466,6 +477,7 @@ class panelLogic {
         this.map;
         this.sections = {};
         this.free_sections = {};
+        this.created_sections = new Set();
         this.longest = {};
         this.panels = new Set();
         this.manual = new Set();
@@ -580,7 +592,8 @@ class panelLogic {
                 $(a_s).css({"font-weight":"bold"});
             }
             $(a_s).on("click",{arg1:logic,arg2:assigned[a][0]},function(e) {
-                e.data.arg1.shadeByUse(e.data.arg2);
+                e.data.arg1.setManualAssignee(e.data.arg2);
+                //e.data.arg1.shadeByUse(e.data.arg2);
             })
             let a_li = $("<li />");
             $(a_li).append(a_s);
@@ -687,7 +700,28 @@ class panelLogic {
                     let kv = $(pm.panels[p_id].use_obj);
                     $(kv).css(rmid,"var(--inner-border-color)");
                 }
-            })         
+            });
+        }
+        for(let p_id of this.created_sections) {
+            if(pm.panels.hasOwnProperty(p_id)) {
+                let kv = $(pm.panels[p_id].use_obj);
+                let rmid = pm.panels[p_id].u;
+                if(rmid==="b") {
+                    if(pm.panels[p_id].t==="v") {
+                        // Vertical, so "b" means both left and right
+                        $(kv).css("border-left-color","var(--created-border)");
+                        $(kv).css("border-right-color","var(--created-border)");
+                    }
+                    else {
+                        $(kv).css("border-top-color","var(--created-border)");
+                        $(kv).css("border-bottom-color","var(--created-border)");
+                    }
+                }
+                else {
+                    rmid = rm[rmid];
+                    $(kv).css(rmid,"var(--created-border)");
+                }
+            }
         }
     }
     resetPanels() {
@@ -1008,6 +1042,7 @@ class panelLogic {
             
         }
         this.assigned = new Set();
+        this.created_sections = new Set();
         let built = await this.decomposeAll();
         if(built===true) {
             let resolved = await this.resolveLongest();
@@ -1383,6 +1418,7 @@ class panHandler {
     constructor(args) {
         this.map = args.map;
         this.start = false;
+        this.shift = false;
     }
     mouseEvent(e) {
         //console.log(e);
@@ -1391,19 +1427,125 @@ class panHandler {
         }
         let pos = {x:e.originalEvent.clientX,y:e.originalEvent.clientY};
         if(e.type==="mousemove") {
-            this.move(pos);
+            if(this.shift===true && this.hasOwnProperty("start_node")) {
+                this.drag(pos,e);
+            }
+            else {
+                this.move(pos);
+            }
         }
         else if(e.type==="mousedown"){
             this.start = pos;
+            if(typeof($(e.target).attr("node_id"))!=="undefined") {
+                if(this.shift===false) {
+                    return;
+                }
+                this.start_node = $(e.target).attr("node_id");
+                let coords = this.start_node.split("_");
+                this.map.sel_a = {x:parseInt(coords[0]),y:parseInt(coords[1])};
+                $("#"+this.start_node+"_ring").show();
+            }
         }
         else if(e.type==="mouseup") {
-            if(this.start!==false) {
-                let dx = pos.x - this.start.x;// - pos.x;
-                let dy = pos.y - this.start.y;// - pos.y;
-                this.map.dx = this.map.dx + dx;
-                this.map.dy = this.map.dy + dy;
+            if(this.shift===true) {
+                // Called when in panel creation time.
+                if(this.hasOwnProperty("last_node")) {
+                    let end_coords = this.last_node.split("_");
+                    this.map.activate(parseInt(end_coords[0]),parseInt(end_coords[1]));
+                    delete this.last_node;
+                }
+                else {
+                    this.map.sel_a = false;
+                    if(this.hasOwnProperty("start_node")) {
+                        delete this.last_node;
+                    }
+                    $(".node_ring").hide();
+                }
             }
-            this.start = false;
+            else {
+                this.reset();
+                // Called when the map is being zoomed or panned
+                if(this.start!==false) {
+                    let dx = pos.x - this.start.x;// - pos.x;
+                    let dy = pos.y - this.start.y;// - pos.y;
+                    this.map.dx = this.map.dx + dx;
+                    this.map.dy = this.map.dy + dy;
+                }
+                this.start = false;
+            }
+
+        }
+    }
+    shiftHandler(e) {
+        if(e.type==="keydown") {
+            this.shift = true;
+        }
+        else {
+            if(this.hasOwnProperty("start_node")) {
+                delete this.start_node;
+            }
+            if(this.hasOwnProperty("last_node")) {
+                delete this.last_node;
+            }
+            $(".node_ring").hide();
+            this.shift = false;
+        }
+    }
+    async drag(pos,e) {
+        if(this.start!==false && this.map.dots===true) {
+            let dx = pos.x - this.start.x;
+            let dy = pos.y - this.start.y;
+            let delta = Math.sqrt(dx**2 + dy**2);
+            if(delta>=10) {
+                let compare_dots = await this.findDot(pos,e);
+                if(compare_dots===true) {
+                    this.compareDot(this.start_node,this.last_node);
+                }
+            }
+        }
+    }
+    async findDot(pos,e) {
+        let match_nodes = new Set();
+        let compare = false;
+        if(this.hasOwnProperty("start_node")) {
+            $("#"+this.start_node+"_ring").show();
+        }
+        if(typeof($(e.target).attr("node_id"))!=="undefined") {
+            this.last_node = $(e.target).attr("node_id");
+            $("#"+$(e.target).attr("node_id")+"_ring").show();
+        }
+        if(this.hasOwnProperty("start_node")) { 
+            match_nodes.add(this.start_node);
+        }
+
+        if(this.hasOwnProperty("last_node")) {
+            match_nodes.add(this.last_node);
+            if(this.start_node!==this.last_node) {
+                compare = true;
+            }
+        }
+        $(".node_ring").each(function() {
+            if(match_nodes.has($(this).attr("node_id"))!==true) {
+                $(this).hide();
+            }
+        });
+        if(compare===true) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    async compareDot(a,b) {
+        // Check the start and most recent node to see if a valid line can be drawn between them.
+        let start_coord = a.split("_");
+        let end_coord = b.split("_");
+        if(start_coord[0]===end_coord[0]) {
+            // Start and end are on the same horizontal plane.
+            console.log("vertical");
+        }
+        else if(start_coord[1]===end_coord[1]) {
+            console.log("horizontal");
         }
     }
     move(pos) {
@@ -1441,5 +1583,9 @@ class panHandler {
             this.map.zoom = 1;
             $("#show_map").css({"transform":"scale(1.0)","left":0,"top":0});
         }
+    }
+    reset() {
+        if(this.hasOwnProperty("start_node")) { delete this.start_node; }
+        if(this.hasOwnProperty("last_node")) { delete this.last_node; }
     }
 }
