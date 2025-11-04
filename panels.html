@@ -48,6 +48,49 @@
                 left: 1rem;
                 top: 1rem;
             }
+            .allocator {
+                position: absolute;
+                left: 1rem;
+                top: 1rem;
+                display: flex;
+                flex-direction: column;
+                right: 1rem;
+                bottom: 1rem;
+            }
+            .allocator_top {
+                position: relative;
+                display: flex;
+                flex-direction: row;
+            }
+            .allocator_map_container {
+                display: flex;
+                flex-direction: column;
+                border: .2rem solid black;
+                overflow: hidden;
+                flex: 2 1 60%;
+                min-width: 500px;
+            }
+            .allocator_map {
+                position: relative;
+                left: 0rem;
+                top: 0rem;
+            }
+
+            /*
+            
+            Side panel, now with Flex
+            
+            */
+
+            .allocator_side {
+                display: flex;
+                flex-direction: column;
+                flex: 2 2 35%;
+                padding-left: 1rem;
+                font-size: 80%;
+                overflow-y:scroll;
+            }
+
             .node {
                 position: absolute;
                 border-radius: 50%;
@@ -106,8 +149,8 @@
             }
             .controls {
                 position: absolute;
-                left: 1.3rem;
-                top: 1.3rem;
+                left: 0.3rem;
+                top: 0.3rem;
                 display: flex;
                 flex-direction:row;
             }
@@ -164,6 +207,9 @@
                 border: 1px solid black;
                 border-radius: 5px;
             }
+            .button_disabled {
+                opacity: 0.3;
+            }
             .face_label {
                 position: absolute;
                 left: 1rem;
@@ -182,19 +228,18 @@
             }
             .map_key {
                 display:flex;
-                position: absolute;
-                right: 1rem;
-                width: 240px;
-                font-size: 10pt;
-                top: calc(65% + 3rem);
-                flex-direction: column;
+                flex-direction: row;
+                margin-top:2rem;
+                font-size: 80%;
             }
             .key_pair {
                 display: flex;
                 flex-direction: row;
+                flex: 0 1 20%;
             }
             .key_color {
                 display: flex;
+                flex-direction: column;
                 flex: 0 0 2rem;
                 width: 1rem;
                 height: 1rem;
@@ -202,6 +247,7 @@
             }
             .key_explanation {
                 display: flex;
+                flex-direction: column;
                 padding-left: 1rem;
                 flex: 2 1 auto;
             }
@@ -417,54 +463,23 @@
                 "9_26|10_26":{"t":"h","u":"b","labels":{"d":"B3","u":"B51"}},
                 "9_26|9_27":{"t":"v","u":"b","labels":{"l":"B1","r":"B2"}}
             }
-            const preload_old = {
-                "9_8|10_8": {"t":"h","u":"b"},
-                "10_7|10_8": {"t":"v","u":"b"},
-                "10_8|11_8": {"t":"h","u":"b"},
-                "11_8|12_8": {"t":"h","u":"b"},
-                "12_8|13_8": {"t":"h","u":"b"},
-                "13_8|14_8": {"t":"h","u":"b"},
-                "14_7|14_8": {"t":"v","u":"b"},
-                "14_8|15_8": {"t":"h","u":"b"},
-                "15_8|16_8": {"t":"h","u":"b"},
-                "16_8|17_8": {"t":"h","u":"b"},
-                "17_8|18_8": {"t":"h","u":"b"},
-                "18_7|18_8": {"t":"v","u":"b"},
-                "18_8|19_8": {"t":"h","u":"b"},
-                "19_8|20_8": {"t":"h","u":"b"},
-                "20_8|21_8": {"t":"h","u":"b"},
-                "21_8|22_8": {"t":"h","u":"b"},
-                "22_7|22_8": {"t":"v","u":"l"},
-                "22_6|22_7": {"t":"v","u":"l"},
-                "22_5|22_6": {"t":"v","u":"l"},
-                "22_4|22_5": {"t":"v","u":"l"},
-                "21_4|22_4": {"t":"h","u":"d"},
-                "14_8|14_9": {"t":"v","u":"b"},
-                "18_8|18_9": {"t":"v","u":"b"},
-                "22_8|22_9": {"t":"v","u":"l"},
-                "22_9|22_10": {"t":"v","u":"l"},
-                "22_10|22_11": {"t":"v","u":"l"},
-                "22_11|22_12": {"t":"v","u":"l"},
-                "21_12|22_12": {"t":"h","u":"b"},
-                "20_12|21_12": {"t":"h","u":"b"},
-                "9_14|10_14": {"t":"h","u":"b"},
-                "10_14|11_14": {"t":"h","u":"b"},
-                "11_14|12_14": {"t":"h","u":"b"},
-                "12_14|13_14": {"t":"h","u":"b"},
-                "13_14|14_14": {"t":"h","u":"b"},
-                "10_13|10_14": {"t":"v","u":"b"},
-                "10_14|10_15": {"t":"v","u":"b"},
-                "14_13|14_14": {"t":"v","u":"b"},
-                "14_14|14_15": {"t":"v","u":"b"},
-                "22_12|22_13": {"t":"v","u":"l"}
-            }
+            
             let map;
+            const demo = new allocator();
 
-            function setup() {
+            async function setup() {
                 map = new showMap();
                 logic = new panelLogic();
                 pan_handler = new panHandler({map:map});
-                map.pan_handler = pan_handler;
+                demo.map = map;
+                demo.logic = logic;
+                demo.container = document.getElementById("allocator_demo");
+
+                map.logic = logic;
+                logic.map = map;
+                map.interactor = pan_handler;
+                map.allocator = demo;
+
                 document.addEventListener("drag",function(e) { console.log(e)});
                 document.addEventListener("keydown",function(e) {
                     if(e.key==="Shift") { pan_handler.shiftHandler(e); }
@@ -472,76 +487,19 @@
 	            document.addEventListener("keyup",function(e) { 
                     if(e.key==="Shift") { pan_handler.shiftHandler(e); }; 
                 });
-                artist_handler = new serialize({parent:logic,type:"artist",deserializer:"#load_artists"});
-                map.interactor = pan_handler;
+                
                 logic.map = map;
-                /*
-                let panel_count = [4,6,3,5,1,2,1,1,5,4,6];
-                for(let k in panel_count) {
-                    logic.assignees.push({0:"name_"+(parseInt(k)+1),1:panel_count[k]});
-                }
-                */
+
+
+
+                if(await demo.createVisualStructure()===true) { map.createMap(); }
+                artist_handler = new serialize({parent:logic,type:"artist"});
+                layout_handler = new serialize({parent:logic,type:"layout"});
+                demo.serializer = artist_handler;
                 map.logic = logic;
-                map.createMap();
+                //map.createMap();
                 doPreload();
                 logic.buildSections();
-                $("#add_panels").on("click",function() {
-                    map.dotDraw();
-                });
-                $("#rename_panels").on("click",function() {
-                    map.doLabels();
-                });
-                $("#get_freespace").on("click",function() {
-                    logic.buildSections();
-                });
-                $("#assign_artists").on("click",function() {
-                    logic.assignAll();
-                });
-                $("#show_map").on("mousedown",function(e) { map.interactor.mouseEvent(e); });
-                $("#show_map").on("mouseup",function(e) { map.interactor.mouseEvent(e); });
-                $("#show_map").on("mousemove",function(e) { map.interactor.mouseEvent(e); });
-                $("#assign_single_artist").on("click",function() {
-                    logic.manual_assignee = false;
-                    $("#assign_single_artist").hide();
-                    if(logic.needs_recalculation===false) {
-                        $("#assign_artists").show();
-                    }
-                    $(".face_selector").hide();
-                });
-                $("#load_new_data").on("click",function() {
-                    $("#artist_load_panel").show();
-                    $("#save_new_data").show();
-                    $("#load_new_data").hide();
-                    $("#assign_artists").hide();
-                    $("#add_panels").hide();
-                    artist_handler.serialize();
-                });
-                $("#save_new_data").on("click",function() {
-                    $("#artist_load_panel").hide();
-                    $("#save_new_data").hide();
-                    $("#load_new_data").show();
-                    $("#add_panels").show();
-                    if(logic.needs_recalculation===false) {
-                        $("#assign_artists").show();
-                    }
-                });
-                $("#zoom_in").on("click",function() { map.interactor.zoom("in")});
-                $("#zoom_out").on("click",function() { map.interactor.zoom("out")});
-                $("#assign_artists").hide();
-                $("#assign_single_artist").hide();
-
-                $("#label_entry").change(function() {
-                    map.applyLabel();
-                });
-
-                $("#save_artists").on("click",function() {
-                    artist_handler.serialize("self",true);
-                });
-
-                $("#rename_panels").hide();
-                $("#artist_load_panel").hide();
-                $("#save_new_data").hide();
-                $("#label_maker").hide();
             }
 
             function doPreload() {
@@ -564,33 +522,25 @@
         </script>
 	</head>
 	<body onload="setup()">
-        <div class="show_map_container" id="show_map_container" draggable="false">
-            <div class="zoom" id="zoom_out" style="left:0.2rem; top: 2rem;">-</div>
-            <div class="zoom" id="zoom_in" style="left:0.2rem; top: 4.2rem;">+</div>
-            <div class="face_label" id="label_maker" style="left:0.2rem; top: 6.6rem;">
-                <span id="label_face"></span>
-                 label: <input type="text" id="label_entry" class="label_maker"/>
+        <div class="allocator" id="allocator_demo">
+            <!--
+            <div class="show_map_container" id="show_map_container" draggable="false">
+                <div class="zoom" id="zoom_out" style="left:0.2rem; top: 2rem;">-</div>
+                <div class="zoom" id="zoom_in" style="left:0.2rem; top: 4.2rem;">+</div>
+                <div class="face_label" id="label_maker" style="left:0.2rem; top: 6.6rem;">
+                    <span id="label_face"></span>
+                    label: <input type="text" id="label_entry" class="label_maker"/>
+                </div>
+                <div class="show_map" id="show_map" draggable="false">
+                </div>
             </div>
-            <div class="show_map" id="show_map" draggable="false">
-            </div>
+        -->
         </div>
-        <div class="controls">
-            <div class="button load_button" id="load_new_data">Load/save</div>
-            <div class="button load_button" id="save_new_data">Load/save</div>
-            <div class="button load_button" id="add_panels">Modify Layout</div>
-            <div class="button" id="rename_panels">Modify Labels</div>
-            <div class="button" id="assign_artists">Assign all artists</div>
-            <div class="button" id="assign_single_artist">Assigning artist: </div>
-            <div class="button" id="get_freespace">Recalculate free space</div>
-        </div>
-        <div class="artist_panel" id="artist_list">
-            <div class="artist_list" id="unassigned_artists"></div>
-            <div class="artist_list" id="assigned_artists"></div>
-        </div>
-        <div class="artist_panel" id="artist_load_panel">
+
+        <div class="artist_panel" id="artist_load_panel" style="display:none">
             <div class="button" id="load_artists" style="margin-bottom:1rem;">Load artists</div>
             <div class="button" id="save_artists" style="margin-bottom:1rem;">Save assignments</div>
-            <textarea id="artist_predef" class="load_area">
+            <textarea id="artist_predef_old" class="load_area">
                 name_1•4
                 name_2•6
                 name_3•3
@@ -751,28 +701,6 @@
                 name_158•3•wide|3
                 name_159•1
             </textarea>
-        </div>
-        <div class="map_key" id="map_key">
-            <div class="key_pair normal_key">
-                <div class="key_color" style="background-color:var(--inner-border-color)"></div>
-                <div class="key_explanation">Unassigned panel.</div>
-            </div>
-            <div class="key_pair normal_key">
-                <div class="key_color" style="background-color:var(--created-border)"></div>
-                <div class="key_explanation">New panel, requires recalculation.</div>
-            </div>
-            <div class="key_pair normal_key">
-                <div class="key_color" style="background-color:var(--selected-border)"></div>
-                <div class="key_explanation">Allocated panel.</div>
-            </div>
-            <div class="key_pair normal_key">
-                <div class="key_color" style="background-color:var(--selected-artist)"></div>
-                <div class="key_explanation">Selected panel.</div>
-            </div>
-            <div class="key_pair build_key" style="display:none;">
-                <div class="key_color" style="background-color:var(--available-border)"></div>
-                <div class="key_explanation">Valid panel to be allocated.</div>
-            </div>
         </div>
         <div class="section_list" id="section_list"></div>
 	</body>

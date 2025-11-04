@@ -18,14 +18,15 @@ class showMap {
         this.face_ids = {}; // array of face_id : label
         this.face_names = {}; // array of label : face_id
         this.interactor;
+        this.allocator;
     }
 
     createMap() {
         let m = this.gw / this.gh;
         if(m>1.0) {
             // Landscape
-            this.dw = $(document).width()-300;
-            this.dh = ($(document).width()-300) / m;
+            this.dw = $(document).width() * 0.6;
+            this.dh = ($(document).width() * 0.6) / m;
         }
         else {
             this.dw = $(document).width()-300;
@@ -33,8 +34,13 @@ class showMap {
         }
         this.o_x = this.dw / (this.gw+1);
         this.o_y = this.dh / (this.gh+1);
-        $("#show_map_container").css({"width":this.dw,"height":this.dh});
-        $("#show_map").css({"width":this.dw,"height":this.dh});
+        let p = this.allocator.map_dom;
+        let c = this.allocator.container_top;
+        //$("#show_map_container").css({"width":this.dw,"height":this.dh});
+        $(p).css({"width":this.dw,"height":this.dh});
+        $(c).css({"height":this.dh});
+        //$(c).css({"width":this.dw,"height":this.dh});
+        //$("#show_map")
         this.addDots();
     }
     dotDraw() {
@@ -68,17 +74,12 @@ class showMap {
                 if(this.dots===false) {
                     $(pdot).hide();
                 }
-                $("#show_map").append(pdot);
+                $(this.allocator.map_dom).append(pdot);
             }
         }
     }
     showDots() {
         this.dots = true;
-        $(".normal_key").hide();
-        $(".build_key").show();
-        $("#add_panels").html("Done modifying");
-        $("#rename_panels").show();
-        $("#assign_artists").hide();
         $(".node_parent").show();
         $(".panel_selector").show();
         $(".face_selector").hide();
@@ -90,61 +91,55 @@ class showMap {
         // Clear selectors from the mouse logic handler
         this.sel_a = false;
         this.sel_b = false;
-        this.pan_handler.reset();
-        $(".normal_key").show();
-        $(".build_key").hide();
+        this.interactor.reset();
         logic.shadeByUse();
-        $("#add_panels").html("Modify layout");
-        $("#rename_panels").hide();
-        if(logic.needs_recalculation===false) {
-            $("#assign_artists").show();
-        }
         $(".node_parent").hide();
+        $(".face_selector").show();
         $(".panel_selector").hide();
     }
     doLabels() {
         if(this.labels===false) {
             this.labels = true;
             this.logic.manual_assignee = "labels";
-            $("#rename_panels").html("Done labeling");
             this.logic.shadeByUse();
             $(".panel_selector").hide();
             $(".face_selector").show();
-            $("#label_maker").show();
         }
         else {
-            console.log("exit labeling");
             this.logic.manual_assignee = false;
-            $("#rename_panels").html("Modify labels");
-            $("#label_maker").hide();
             $(".panel_selector").show();
-            $(".face_selector").hide();
+            //$(".face_selector").hide();
             this.labels = false;
             this.drawPanels();
-
         }
     }
     makeLabel(face_id) {
         let ps = face_id.split("|")
         let p_id = ps[0]+"|"+ps[1];
         let p_dir = ps[2];
-        $("#label_face").html(face_id);
+        let l_face = this.allocator.label["face"];
+        let l_input = this.allocator.label["input"];
+        $(l_face).html(face_id);
         if(this.panels[p_id].labels.hasOwnProperty(p_dir)) {
-            $("#label_entry").val(this.panels[p_id].labels[p_dir]);
+            $(l_input).val(this.panels[p_id].labels[p_dir]);
         }
         else {
-            $("#label_entry").val("");
+            $(l_input).val("");
         }
     }
     applyLabel() {
-        let ps = $("#label_face").html().split("|")
-        let p_id = ps[0]+"|"+ps[1];
-        let p_dir = ps[2];
-        let v = $("#label_entry").val();
-        let f_id = p_id + "|" + p_dir; // reconstruct face ID, probably same as ps.html();
-        this.face_ids[f_id] = v;
-        this.face_names[v] = f_id;
-        this.panels[p_id].labels[p_dir] = v;
+        let l_face = this.allocator.label["face"];
+        let l_input = this.allocator.label["input"];
+        let ps = $(l_face).html().split("|")
+        if(ps.length>0) {
+            let p_id = ps[0]+"|"+ps[1];
+            let p_dir = ps[2];
+            let v = $(l_input).val();
+            let f_id = p_id + "|" + p_dir; // reconstruct face ID, probably same as ps.html();
+            this.face_ids[f_id] = v;
+            this.face_names[v] = f_id;
+            this.panels[p_id].labels[p_dir] = v;
+        }
     }
     activate(x,y) {
         if(this.sel_a!==false) {
@@ -216,7 +211,7 @@ class showMap {
                     this.sel_a = false;
                     this.sel_b = false;
                 }
-                this.pan_handler.reset();
+                this.interactor.reset();
             }
         }
         else {
@@ -353,8 +348,9 @@ class showMap {
             $(panel_selector).hide();
         }
         // Also, hide the face selectors that will be used to manually assign artists.
-        $(face_selector_a).hide();
-        $(face_selector_b).hide();
+        // Temporarily commenting this out.
+        //$(face_selector_a).hide();
+        //$(face_selector_b).hide();
         if(this.panels.hasOwnProperty(p_id)) {
             // Panel exists. So instead of adding it, delete it.
             $(this.panels[p_id].obj).remove();
@@ -481,7 +477,8 @@ class panelLogic {
         this.longest = {};
         this.panels = new Set();
         this.manual = new Set();
-        this.faces = {};
+        this.faces = {}; // Map of face to section ID
+        this.face_assignments = {}; // Map of face to artist name
         this.needs_recalculation = true;
         this.assignees = [];
         /*
@@ -540,8 +537,10 @@ class panelLogic {
         It also adds the click handlers to enter artist-assignment mode.
 
             */
-        $("#assigned_artists").empty();
-        $("#unassigned_artists").empty();
+        let assigned_dom = this.map.allocator.artists["assigned"];
+        let unassigned_dom = this.map.allocator.artists["unassigned"];
+        $(assigned_dom).empty();
+        $(unassigned_dom).empty();
         
         let unassigned = [];
         let assigned = [];
@@ -549,26 +548,27 @@ class panelLogic {
         for(let k in this.assignments) {
             let artist = this.assignments[k];
             let a_id = k;
+            let artist_name = artist.name;
             let artist_assigned = artist.panels.size;
             let artist_unassigned = artist.needed - artist_assigned;
             if(artist_assigned>0) {
                 if(artist_assigned===1) {
-                    assigned.push([k,k + " ("+artist_assigned+" panel)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" panel)"]);
                 }
                 else {
-                    assigned.push([k,k + " ("+artist_assigned+" panels)"]);
+                    assigned.push([k,artist_name + " ("+artist_assigned+" panels)"]);
                 }
             }
             if(artist_unassigned>0) {
                 if(artist_unassigned===1) {
-                    unassigned.push([k,k + " ("+artist_unassigned+" panel)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" panel)"]);
                 }
                 else {
-                    unassigned.push([k,k + " ("+artist_unassigned+" panels)"]);
+                    unassigned.push([k,artist_name + " ("+artist_unassigned+" panels)"]);
                 }
             }
         }
-        $("#unassigned_artists").append("Artists needing assignment: ");
+        $(unassigned_dom).append("Artists needing assignment: ");
         let un_ul = $("<ul />");
         for(let k in unassigned) {
             let u_s = $("<span />",{id:unassigned[k][0]+"_u_key",text:unassigned[k][1]});
@@ -582,8 +582,8 @@ class panelLogic {
             $(u_li).append(u_s);
             $(un_ul).append(u_li);
         }
-        $("#unassigned_artists").append(un_ul);
-        $("#assigned_artists").append("Artists assigned: ");
+        $(unassigned_dom).append(un_ul);
+        $(assigned_dom).append("Artists assigned: ");
         let a_ul = $("<ul />");
         
         for(let a in assigned) {
@@ -599,7 +599,7 @@ class panelLogic {
             $(a_li).append(a_s);
             $(a_ul).append(a_li);
         }
-        $("#assigned_artists").append(a_ul);
+        $(assigned_dom).append(a_ul);
         //$("#artist_list").append(assigned.join(", "))
     }
     shadeSection(id,type="section") {
@@ -656,6 +656,7 @@ class panelLogic {
         
     }
     shadeByUse(artist_id=false) {
+        this.face_assignments = {}; // Reset the face assignment chart.
         let rm = {
             "l":"border-left-color",
             "r":"border-right-color",
@@ -671,12 +672,14 @@ class panelLogic {
         for(let k in this.assignments) {
             let ks = this.assignments[k]["panels"]; // This is a set of objects.
             ks.forEach((p) => {
+                this.face_assignments[p] = k;
                 let ps = p.split("|");
                 let p_id = ps[0]+"|"+ps[1];
                 let rmid = ""+rm[ps[2]];
                 if(pm.panels.hasOwnProperty(p_id)){
                     let kv = $(pm.panels[p_id].use_obj);
                     if(k===artist_id) {
+                        console.log(k,kv,ps,rmid);
                         $(kv).css(rmid,"var(--selected-artist)");
                         $("#"+k+"_a_key").css({"font-weight":"bold"});
                         $("#"+k+"_u_key").css({"font-weight":"bold"});
@@ -732,12 +735,13 @@ class panelLogic {
         this.assignees = this.assignees.sort((a,b) => { return a[1] < b[1];});
         for(let k of this.assignees) {
             if(this.assignments.hasOwnProperty(k[0])) {
-                if(this.assignments[k[0]].manual===false) {
-                    this.assignments[k[0]]["panels"] = new Set();
+                this.assignments[k[0]]["panels"] = new Set();
+                for(let m_p of this.assignments[k[0]].manual) {
+                    this.assignments[k[0]]["panels"].add(m_p);
                 }
             }
             else {
-                this.assignments[k[0]] = {"needed":k[1],"panels":new Set(),"manual":false};
+                this.assignments[k[0]] = {"needed":k[1],"panels":new Set(),"manual":new Set()};
             }
         }
         this.free_sections = structuredClone(this.sections);
@@ -753,6 +757,9 @@ class panelLogic {
         for(let k in this.assignments) {
             let needed = this.assignments[k].needed - this.assignments[k].panels.size; // It's possible that there is already some necessary.
             let t = this.assign(needed,this.assignments[k].wide);
+            if(k==="name_1") {
+                console.log(needed,t);
+            }
             if(t!==false) {
                 // Check to see if there are already some assignments.
                 if(this.assignments[k].panels.size>0) {
@@ -904,6 +911,31 @@ class panelLogic {
             return false;
         }
     }
+    
+    clearAssignment(name="none") {
+        let target = this.assignments.hasOwnProperty(name) ? this.assignments[name] : false;
+        if(target===false) {
+            return;
+        }
+        let freed_panels = new Set();
+        for(let k of target.panels) {
+            freed_panels.add(k);
+            target.panels.delete(k);
+        }
+        for(let k of target.manual) {
+            freed_panels.add(k);
+            target.manual.delete(k);
+        }
+        for(let k of freed_panels) {
+            if(this.manual.has(k)) {
+                this.needs_recalculation = true;
+                this.manual.delete(k);
+            }
+            this.free_sections[Object.keys(this.free_sections).length] = [k];
+        }
+        this.artistList();
+        this.shadeByUse(name);
+    } 
 
     assign_old(count) {
         // Let's try to assign this.
@@ -953,17 +985,42 @@ class panelLogic {
         This will set a special mode that lets us assign panels directly to an artist.
         */
         console.log(face_id);
-        if(this.manual_assignee==="labels") {
+        let single_button = this.map.allocator.buttons["assign_single"];
+        this.map.allocator.assignmentVisibility();
+        let has_assignee = this.hasOwnProperty("manual_assignee") ? this.manual_assignee : false;
+        if(has_assignee==="labels") {
             this.shadeSection(face_id,"face");
             this.map.makeLabel(face_id);
             return;
         }
+        else if(has_assignee===false) {
+            if(this.face_assignments.hasOwnProperty(face_id)) {
+                this.setManualAssignee(this.face_assignments[face_id]);
+            }
+            return;
+        }
+        else {
+            // Case where a manual assignee EXISTS but we want to choose another one
+            if(this.map.interactor.shift===true) {
+                if(this.face_assignments.hasOwnProperty(face_id)) {
+                    this.setManualAssignee(this.face_assignments[face_id]);
+                }
+            return;
+            }
+            
+        }
         if(this.faces.hasOwnProperty(face_id)) {
             // This implies that it is a valid panel face.
-            if(this.assignments[this.manual_assignee].panels.has(face_id)) {
+            let man = this.assignments[this.manual_assignee];
+            if(man.panels.size>=man.needed) {
+                $(single_button).html("Finish assigning");
+                return;
+            }
+            if(man.panels.has(face_id)) {
                 // This face ID is currently assigned to the artist.
                 this.manual.delete(face_id);
-                this.assignments[this.manual_assignee].panels.delete(face_id);
+                man.panels.delete(face_id);
+                man.manual.delete(face_id);
                 this.free_sections[this.faces[face_id]].add(face_id);
             }
             else {
@@ -972,23 +1029,28 @@ class panelLogic {
                     // It is also not a face_id that has already been assigned in general.
                     // So now it should be assigned.
                     this.manual.add(face_id);
-                    this.assignments[this.manual_assignee].panels.add(face_id);
+                    man.panels.add(face_id);
+                    if(man.hasOwnProperty("manual")) {
+                        man.manual.add(face_id);
+                    }
+                    else {
+                        man.manual = new Set([face_id]);
+                    }
                     this.free_sections[this.faces[face_id]].delete(face_id);
                 }
             }
+            /*
             if(this.assignments[this.manual_assignee].panels.size>0) {
-                this.assignments[this.manual_assignee].manual = true;
-                if(this.assignments[this.manual_assignee].panels.size === this.assignments[this.manual_assignee].needed) {
-                    $("#assign_single_artist").html("Finish assigning");
-                }
-                else {
-                    $("#assign_single_artist").html("Assigning artist: "+this.manual_assignee);
-                }
+                //this.assignments[this.manual_assignee].manual = new Set(this.assignments[this.manual_assignee]["panels"]);
+                $(single_button).html(this.getManualAssigneeLabel(this.manual_assignee));
             }
             else {
-                this.assignments[this.manual_assignee].manual = false;
-                $("#assign_single_artist").html("Assigning artist: "+this.manual_assignee);
+                //this.assignments[this.manual_assignee].manual = new Set();
+                man.manual = new Set();
+                
             }
+            */
+            $(single_button).html(this.getManualAssigneeLabel(this.manual_assignee));
             if(this.manual.size>0) {
                 this.setRecalculation(true);
             }
@@ -997,31 +1059,60 @@ class panelLogic {
             }
             this.artistList();
         }
+        else if (this.manual.has(face_id)) {
+            if(this.assignments[this.manual_assignee].panels.has(face_id)) {
+                // This face ID is currently assigned to the artist.
+                this.manual.delete(face_id);
+                this.assignments[this.manual_assignee].panels.delete(face_id);
+                this.assignments[this.manual_assignee].manual.delete(face_id);
+                this.free_sections[Object.keys(this.free_sections).length] = new Set([face_id]);
+                $(single_button).html(this.getManualAssigneeLabel(this.manual_assignee));
+                this.setRecalculation(true);
+                this.artistList();
+                //this.free_sections[this.faces[face_id]].add(face_id);
+            }
+        }
         else {
             console.log("Not a valid face.");
         }
         this.shadeByUse(this.manual_assignee);
     }
+    getManualAssigneeLabel(artist_id) {
+        let label = "Assigning artist: "+artist_id;
+        if(this.assignments.hasOwnProperty(artist_id)) {
+            label = "Assigning artist: "+this.assignments[artist_id].name;
+            if(this.assignments[artist_id].panels.size>=this.assignments[artist_id].needed) {
+                // This means we should recommend closing out the assignment.
+                label = "Finish assigning";
+            }
+        }
+        return label;
+    }
     setManualAssignee(artist_id) {
+        let single_button = map.allocator.buttons["assign_single"];
+        let assign_button = map.allocator.buttons["assign"];
+        let unassigned_dom = map.allocator.artists["unassigned"];
+        let assigned_dom = map.allocator.artists["assigned"];
         if(this.manual_assignee===artist_id) {
             // Click to exit assignment.
             this.manual_assignee = false;
             // Unbold everyone in the unassigned list.
-            $("#unassigned_artists").children("ul").children("li").each(function() { $(this).children("span").css("font-weight","")});
-            $("#assign_single_artist").hide();
-            $("#assign_artists").show();
-            $(".face_selector").hide();
+            $(unassigned_dom).children("ul").children("li").each(function() { $(this).children("span").css("font-weight","")});
+            //$(single_button).hide();
+            //$(assign_button).show();
+            //$(".face_selector").hide();
         }
         else {
             this.manual_assignee = artist_id;
-            $("#assign_single_artist").html("Assigning artist: "+this.manual_assignee);
+            $(single_button).html(this.getManualAssigneeLabel(artist_id));
             // Unbold everyone in the unassigned list.
-            $("#unassigned_artists").children("ul").children("li").each(function() { $(this).children("span").css("font-weight","")});
+            $(unassigned_dom).children("ul").children("li").each(function() { $(this).children("span").css("font-weight","")});
             
-            $("#assign_single_artist").show();
-            $("#assign_artists").hide();
-            $(".face_selector").show();
+            //$(single_button).show();
+            //$(assign_button).hide();
+            //$(".face_selector").show();
         }
+        map.allocator.assignmentVisibility();
         this.shadeByUse(this.manual_assignee);
     }
     async buildSections() {
@@ -1030,7 +1121,7 @@ class panelLogic {
             //console.log(k);
             if(this.assignments.hasOwnProperty(k[0])) {
                 //console.log("Checking existing "+k[0]);
-                if(this.assignments[k[0]].manual===false) {
+                if(this.assignments[k[0]].manual.size===0) {
                     //console.log("Had no existing: "+k[0])
                     // if manual was true then don't automatically remove this from calculation.
                     this.assignments[k[0]].panels = new Set();
@@ -1055,8 +1146,7 @@ class panelLogic {
             }
         }
         this.setRecalculation(false);
-        $("#assign_artists").show();
-        
+        this.map.allocator.assignmentVisibility();        
         return true;
     }
     async decomposeAll() {
@@ -1268,10 +1358,20 @@ class panelLogic {
         this.needs_recalculation = recalculate;
         if(recalculate===false ) {
             // No longer need recalculating. Hide the recalculate marker.
-            $("#get_freespace").hide();
+            if(this.map.dots===true) {
+                this.map.allocator.buttons["modify"].html("Done modifying");
+            }
+            else {
+                this.map.allocator.buttons["modify"].html("Modify layout");
+            }
         }
         else {
-            $("#get_freespace").show();
+            if(this.map.dots===true) {
+                this.map.allocator.buttons["modify"].html("Done modifying (will require recalculation)");
+            }
+            else {
+                this.map.allocator.buttons["modify"].html("Modify layout");
+            }
         }
     }
 }
@@ -1280,7 +1380,7 @@ class serialize {
     constructor(args) {
         this.parent = args.hasOwnProperty("parent") ? args.parent : false;
         this.parent_type = args.hasOwnProperty("type") ? args.type : false;
-        this.source = {"layout":"#layout_predef","artist":"#artist_predef"};
+        this.source = {"layout":"#layout_predef","artist":this.parent.map.allocator.load_src};
         this.deserializer = args.hasOwnProperty("deserializer") ? args.deserializer : false;
         if(this.deserializer!==false) {
             $(this.deserializer).on("click",{arg1:this},function(e) {
@@ -1290,9 +1390,20 @@ class serialize {
                 }
             })
         }
+        else {
+            this.deserializer = this.parent.map.allocator.buttons["load"];
+            /*
+            $(this.deserializer).on("click",{arg1:this},function(e) {
+                e.data.arg1.deserialize();
+                if(e.data.arg1.parent_type==="artist") {
+                    e.data.arg1.parent.buildSections();
+                }
+            });
+            */
+        }
     }
 
-    deserialize(data="self") {
+    async deserialize(data="self") {
         /*
         Self: Data stored on page.
         */
@@ -1310,7 +1421,8 @@ class serialize {
                 }
             }
         }
-        this.load(src);
+        let loaded = await this.load(src);
+        return loaded;
         //console.log(src);
     }
 
@@ -1339,18 +1451,33 @@ class serialize {
                 }
                 $(this.source[this.parent_type]).val(ds.join("\n"));
             }
+            else if(this.parent_type==="layout") {
+                let panel_layout = {};
+                for(let p in this.parent.map.panels) {
+                    panel_layout[p] = {
+                        "t":this.parent.map.panels[p].t,
+                        "u":this.parent.map.panels[p].u,
+                        "labels":structuredClone(this.parent.map.panels[p].labels)
+                    }
+                }
+                console.log(panel_layout);
+            }
         }
 
     }
 
-    load(src) {
+    async load(src) {
+        console.log(src);
         if(this.parent_type==="artist") {
             // First we need to clear the existing artist list.
             this.parent.assignees = [];
             this.parent.assignments = {};
+            let idx = 0;
             for(let k in src) {
+                idx+=1;
                 let ks = src[k];
-                let as_obj = {0:ks[0],1:ks[1]};
+                let k_id = "name_"+idx;
+                let as_obj = {0:k_id,1:ks[1]};
                 this.parent.assignees.push(as_obj);
                 let p_arr = [];
                 let is_wide = false;
@@ -1370,10 +1497,11 @@ class serialize {
                     }
                 }
                 let manual = p_arr.length>0 ? true : false;
-                this.parent.assignments[ks[0]] = {"needed":ks[1],"panels":new Set(p_arr),"manual":manual,"wide":is_wide};
+                this.parent.assignments[k_id] = {"name":ks[0],"needed":ks[1],"panels":new Set(p_arr),"manual":new Set(p_arr),"wide":is_wide};
             }
             this.parent.artistList();
         }
+        return true;
     }
 
     parse(r_i) {
@@ -1549,19 +1677,21 @@ class panHandler {
         }
     }
     move(pos) {
+        let m = this.map.allocator.map_dom;
         if(this.start!==false && this.map.zoom>1) {
             // Determine the offsets from the original event.
             let dx = pos.x - this.start.x;// - pos.x;
             let dy = pos.y - this.start.y;// - pos.y;
-            $("#show_map").css({"left":this.map.dx+dx,"top":this.map.dy+dy});
+            $(m).css({"left":this.map.dx+dx,"top":this.map.dy+dy});
         } 
     }
     zoom(dir="out") {
+        let m = this.map.allocator.map_dom;
         if(dir===false) {
             // If this is false, we're going to reset the zoom.
             this.map.dx = 0; // Reset the map delta (x) to 0
             this.map.dy = 0; // Reset the map delta (y) to 0
-            $("#show_map").css({"transform":"scale(1.0)","left":this.map.dx,"top":this.map.dy});
+            $(m).css({"transform":"scale(1.0)","left":this.map.dx,"top":this.map.dy});
         }
         if(dir==="out") {
             this.start = false;
@@ -1572,20 +1702,360 @@ class panHandler {
         else {
             this.start = false;
             this.map.zoom = this.map.zoom + 1;
-            $("#show_map").css({"transform":"scale("+this.map.zoom+")"});
+            $(m).css({"transform":"scale("+this.map.zoom+")"});
         }
         if(this.map.zoom>1) {
-            $("#show_map").css({"transform":"scale("+this.map.zoom+")"});
+            $(m).css({"transform":"scale("+this.map.zoom+")"});
+            $(this.map.allocator.zoom["out"]).removeClass("button_disabled");
         }
         else {
             this.map.dx = 0;
             this.map.dy = 0;
             this.map.zoom = 1;
-            $("#show_map").css({"transform":"scale(1.0)","left":0,"top":0});
+            $(this.map.allocator.zoom["out"]).addClass("button_disabled");
+            $(m).css({"transform":"scale(1.0)","left":0,"top":0});
         }
     }
     reset() {
         if(this.hasOwnProperty("start_node")) { delete this.start_node; }
         if(this.hasOwnProperty("last_node")) { delete this.last_node; }
+    }
+}
+
+class allocator {
+    constructor(args) {
+        this.map;
+        this.logic;
+        this.container;
+        this.container_top;
+        this.map_container_dom;
+        this.map_dom;
+        this.zoom;
+        this.mode = "normal";
+    }
+    async createVisualStructure() {
+        if(typeof(this.container)==="undefined") { return; }
+        $(this.container).empty();
+        let map_parent = this.map;
+        let interactor_parent = this.map.interactor;
+        let serializer_parent = this.serializer;
+
+        // This function will build the DOM elements and provide the visual structure for the allocator.
+        let main_container = $(this.container); 
+        let t = $("<div />",{"class":"allocator_top"}); // Flex container for the map and artist list.
+        this.container_top = t;
+
+        let map_container_dom = $("<div />",{"class":"allocator_map_container","id":"show_map_container","attr":{"draggable":"false"}});
+        let map_dom = $("<div />",{"class":"allocator_map","id":"show_map","attr":{"draggable":"false"}});
+        let zoom_out = $("<div />",{"class":"zoom button_disabled","id":"zoom_out","text":"-","css":{"left":"0.3rem","top":"2.2rem"}});
+        let zoom_in = $("<div />",{"class":"zoom","id":"zoom_out","text":"+","css":{"left":"0.3rem","top":"4.4rem"}});
+        let label_dom = $("<div />",{"class":"face_label","id":"label_maker","css":{"top":"6.8rem","left":"0.3rem"}});
+        let label_face_dom = $("<span />",{"id":"label_face"});
+        let label_face_input_dom = $("<input />",{"id":"label_entry","class":"label_maker","attr":{"type":"text"}});
+        $(label_face_input_dom).on("change",{arg1:map_parent},function(e) {
+            e.data.arg1.applyLabel();
+        })
+        $(label_dom).append(label_face_dom);
+        $(label_dom).append($("<span />",{"text":" label: "}));
+        $(label_dom).append(label_face_input_dom); 
+        this.label = {"label":label_dom,"face":label_face_dom,"input":label_face_input_dom};
+        $(label_dom).hide();
+        this.zoom = {"in":zoom_in,"out":zoom_out};
+        this.map_dom = map_dom;
+        this.map_container_dom = map_container_dom;
+        $(map_container_dom).append(map_dom);
+
+        
+        // Bind the events used for map dragging.
+        $(map_dom).on("mousedown",function(e) { interactor_parent.mouseEvent(e); });
+        $(map_dom).on("mouseup",function(e) { interactor_parent.mouseEvent(e); });
+        $(map_dom).on("mousemove",function(e) { interactor_parent.mouseEvent(e); });
+
+        // Bind the events used for map zooming.
+        $(zoom_in).on("click",function() { interactor_parent.zoom("in"); });
+        $(zoom_out).on("click",function() { interactor_parent.zoom("out"); });
+
+        t.append($(label_dom));
+        t.append($(map_container_dom));
+        t.append($(zoom_out));
+        t.append($(zoom_in));
+
+        // Create artist list container
+
+        let side_panel = $("<div />",{"class":"allocator_side"});
+        let assigned_artists = $("<div />",{"class":"artist_list"});
+        let unassigned_artists = $("<div />",{"class":"artist_list"});
+        $(side_panel).append(assigned_artists);
+        $(side_panel).append(unassigned_artists);
+        this.artists = {"assigned":assigned_artists,"unassigned":unassigned_artists};
+        this.artist_list = side_panel;
+        t.append($(side_panel));
+
+        // Create controls
+
+        let control_container = $("<div />",{"class":"controls"});
+        let load_save = $("<div />",{"class":"button load_button","text":"Load/save"});
+        let modify = $("<div />",{"class":"button load_button","text":"Modify layout"});
+        let rename = $("<div />",{"class":"button load_button","text":"Modify labels"});
+        let assign = $("<div />",{"class":"button","text":"Assign all artists"});
+        let assign_single = $("<div />",{"class":"button","text":"Assigning artist: "});
+        let unassign_single = $("<div />",{"class":"button","text":"Unassign all for artist"});
+        let recalculate = $("<div />",{"class":"button","text":"Recalculate free space"});
+        $(rename).hide();
+        $(assign_single).hide();
+        $(recalculate).hide();
+        let allocator = this;
+        $(control_container).append(load_save);
+        $(control_container).append(modify);
+        $(control_container).append(rename);
+        $(control_container).append(assign);
+        $(control_container).append(assign_single);
+        $(control_container).append(unassign_single);
+        $(control_container).append(recalculate);
+
+        t.append($(control_container));
+
+        // Create map keys
+
+        let map_key_container = $("<div />",{"class":"map_key"});
+        let legend = [
+            ["Unassigned panel","var(--inner-border-color)","key_pair normal_key"],
+            ["New panel (requires recalculation)","var(--created-border)","key_pair normal_key"],
+            ["Allocated panel","var(--selected-border)","key_pair normal_key"],
+            ["Selected panel","var(--selected-artist)","key_pair normal_key"],
+            ["Valid panel to be allocated","var(--available-border)","key_pair build_key",true]
+        ]
+        for(let k in legend) {
+            let key_pair = $("<div />",{"class":legend[k][2]});
+            let key_color = $("<div />",{"class":"key_color","css":{"background-color":legend[k][1]}});
+            let key_text = $("<div />",{"class":"key_explanation","text":legend[k][0]});
+            if(legend[k].length>3) {
+                if(legend[k][3]===true) {
+                    // should start hidden.
+                    $(key_pair).hide();
+                }
+            }
+            $(key_pair).append(key_color);
+            $(key_pair).append(key_text);
+            $(map_key_container).append(key_pair);
+        }
+
+        $(main_container).append(t);
+        $(main_container).append(map_key_container);
+
+        // Create load area
+
+        let load = $("<div />",{"class":"allocator_side"});
+        let load_text = $("<textarea />",{"class":"load_area"});
+        let load_button = $("<div />",{"class":"button","css":{"margin-bottom":"1rem"},"text":"Load artists"});
+        let save_button = $("<div />",{"class":"button","css":{"margin-bottom":"1rem"},"text":"Save current assignment"});
+        $(load).append(load_button);
+        $(load).append(save_button);
+        if($("#artist_predef_old")) {
+            $(load_text).html($("#artist_predef_old").html());
+        }
+        $(load).append(load_text);
+        this.artist_loader = load;
+        this.load_src = load_text;
+        $(load).hide();
+        t.append(load);
+
+        // Bind event handlers for all buttons.
+
+        this.buttons = {"load_save":load_save,"modify":modify,"rename":rename,"assign":assign,"assign_single":assign_single,"recalculate":recalculate,"load":load_button,"save":save_button,"unassign_single":unassign_single};
+        for(let k in this.buttons) {
+            $(this.buttons[k]).on("click",{arg1:allocator,arg2:k},function(e) { e.data.arg1.buttonHandler(e.data.arg2)});
+        }
+
+        return true;
+    }
+
+    async buttonHandler(b) {
+        console.log(b);
+        let b_obj = this.buttons[b];
+        let b_rel = []; // Buttons to show along side this one if active.
+        if(b=="modify") {
+            b_rel = ["rename","load_save","assign","assign_single","recalculate"];
+            for(let k in b_rel) {
+                $(this.buttons[b_rel[k]]).hide();
+            }
+            if(this.map.dots===true) {
+                // Dots are currently shown; need to be hidden.
+                this.map.hideDots();
+                $(".normal_key").show();
+                $(".build_key").hide();
+                $(this.buttons["load_save"]).show();
+                this.assignmentVisibility();
+                $(b_obj).text("Modify layout");
+            }
+            else {
+                this.map.showDots();
+                $(".normal_key").hide();
+                $(".build_key").show();
+                $(this.buttons["rename"]).show();
+                $(b_obj).text("Done modifying");
+            }
+        }
+        else if(b==="rename") {
+            if(map.labels===false) {
+                $(this.label["label"]).show();
+                $(b_obj).text("Done labeling");
+            }
+            else {
+                $(this.label["label"]).hide();
+                $(this.label["face"]).html("");
+                $(this.label["input"]).val("");
+                $(b_obj).text("Modify labels");
+            }
+            this.map.doLabels();
+        }
+        else if(b==="assign_single") {
+            this.logic.manual_assignee = false;
+            b_rel = ["load_save","modify_layout"];
+            $(b_obj).hide();
+            for(let k in b_rel) {
+                $(this.buttons[b_rel[k]]).show();
+            }
+            this.logic.artistList();
+            this.logic.shadeByUse();
+            this.assignmentVisibility();
+        }
+        else if(b==="unassign_single") {
+            this.logic.clearAssignment(this.logic.manual_assignee);
+            this.assignmentVisibility();
+        }
+        else if(b==="recalculate") {
+            this.logic.buildSections();
+        }
+        else if(b==="assign") {
+            this.logic.assignAll();
+        }
+        else if(b==="load_save") {
+            b_rel = ["rename","assign","assign_single","recalculate","modify"];
+            if(this.mode==="normal") {
+                this.mode = "load";
+                for(let k in b_rel) {
+                    $(this.buttons[b_rel[k]].hide());
+                }
+                $(this.artist_list).hide();
+                $(this.artist_loader).show();
+            }
+            else {
+                this.mode = "normal";
+                $(this.artist_list).show();
+                $(this.artist_loader).hide();
+                this.assignmentVisibility();
+            }
+        }
+        else if(b==="load") {
+            this.mode = "normal";
+            $(this.artist_list).show();
+            $(this.artist_loader).hide();
+            let loaded = await this.serializer.deserialize();
+            if(loaded===true) {
+                this.logic.buildSections();
+                this.logic.assignAll();
+                this.assignmentVisibility();
+            }
+        }
+        else if(b==="save") {
+            this.serializer.serialize("self",true);
+        }
+    }
+
+    async assignmentVisibility() {
+        console.log("checking visibility",this.logic.manual_assignee);
+        let has_manual_assignee = this.logic.hasOwnProperty("manual_assignee") ? this.logic.manual_assignee : false;
+        if(has_manual_assignee!==false) {
+            $(this.buttons["assign_single"]).show();
+            if(this.logic.assignments[this.logic.manual_assignee].panels.size>0) {
+                $(this.buttons["unassign_single"]).html("Unassign all for artist "+this.logic.assignments[this.logic.manual_assignee].name)
+                $(this.buttons["unassign_single"]).show();
+            }
+            else {
+                $(this.buttons["unassign_single"]).hide();
+            }
+            
+            $(this.buttons["assign"]).hide();
+            $(this.buttons["load_save"]).hide();
+            $(this.buttons["modify"]).hide();
+        }
+        else {
+            $(this.buttons["load_save"]).show();
+            $(this.buttons["modify"]).show();
+            $(this.buttons["assign_single"]).hide();
+            $(this.buttons["unassign_single"]).hide();
+            if(this.logic.needs_recalculation===false) {
+                $(this.buttons["assign"]).show();
+                $(this.buttons["recalculate"]).hide();
+            }
+            else {
+                $(this.buttons["assign"]).hide();
+                $(this.buttons["recalculate"]).show();
+            }
+        }
+    }
+    /*
+
+
+        if(this.labels===false) {
+            this.labels = true;
+            this.logic.manual_assignee = "labels";
+            $("#rename_panels").html("Done labeling");
+            this.logic.shadeByUse();
+            $(".panel_selector").hide();
+            $(".face_selector").show();
+            $("#label_maker").show();
+        }
+        else {
+            console.log("exit labeling");
+            this.logic.manual_assignee = false;
+            $("#rename_panels").html("Modify labels");
+            $("#label_maker").hide();
+            $(".panel_selector").show();
+            $(".face_selector").hide();
+            this.labels = false;
+            this.drawPanels();
+
+        }
+
+        $(".normal_key").hide();
+        $(".build_key").show();
+        $("#add_panels").html("Done modifying");
+        $("#rename_panels").show();
+        $("#assign_artists").hide();
+
+
+            $(".normal_key").show();
+        $(".build_key").hide();
+        $("#add_panels").html("Modify layout");
+        $("#rename_panels").hide();
+        if(logic.needs_recalculation===false) {
+            $("#assign_artists").show();
+        }
+    */
+    async emptyVisualStructure() {
+        const dom_keys = new Set(["label","zoom","map_dom","map_container_dom","artists"]);
+        for(let k of dom_keys) {
+            if(this.hasOwnProperty(k)) { delete this[k]; }
+        }
+        $(this.container).empty();
+        return true;
+    }
+
+    async reinitialize() {
+       
+        let clear = await this.emptyVisualStructure();
+        if(clear===true) {
+            let reinit = await this.createVisualStructure();
+            if(reinit===true) { 
+                this.map.createMap();
+                this.map.panels = {};
+                this.map.face_ids = {};
+                this.map.face_names = {};
+                doPreload();
+                this.logic.buildSections();
+            }
+        }
     }
 }
