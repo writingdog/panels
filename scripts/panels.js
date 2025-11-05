@@ -1995,45 +1995,6 @@ class allocator {
             }
         }
     }
-    /*
-
-
-        if(this.labels===false) {
-            this.labels = true;
-            this.logic.manual_assignee = "labels";
-            $("#rename_panels").html("Done labeling");
-            this.logic.shadeByUse();
-            $(".panel_selector").hide();
-            $(".face_selector").show();
-            $("#label_maker").show();
-        }
-        else {
-            console.log("exit labeling");
-            this.logic.manual_assignee = false;
-            $("#rename_panels").html("Modify labels");
-            $("#label_maker").hide();
-            $(".panel_selector").show();
-            $(".face_selector").hide();
-            this.labels = false;
-            this.drawPanels();
-
-        }
-
-        $(".normal_key").hide();
-        $(".build_key").show();
-        $("#add_panels").html("Done modifying");
-        $("#rename_panels").show();
-        $("#assign_artists").hide();
-
-
-            $(".normal_key").show();
-        $(".build_key").hide();
-        $("#add_panels").html("Modify layout");
-        $("#rename_panels").hide();
-        if(logic.needs_recalculation===false) {
-            $("#assign_artists").show();
-        }
-    */
     async emptyVisualStructure() {
         const dom_keys = new Set(["label","zoom","map_dom","map_container_dom","artists"]);
         for(let k of dom_keys) {
