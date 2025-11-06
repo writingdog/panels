@@ -36,11 +36,8 @@ class showMap {
         this.o_y = this.dh / (this.gh+1);
         let p = this.allocator.map_dom;
         let c = this.allocator.container_top;
-        //$("#show_map_container").css({"width":this.dw,"height":this.dh});
         $(p).css({"width":this.dw,"height":this.dh});
         $(c).css({"height":this.dh});
-        //$(c).css({"width":this.dw,"height":this.dh});
-        //$("#show_map")
         this.addDots();
     }
     dotDraw() {
@@ -54,7 +51,6 @@ class showMap {
     addDots() {
         let m = this.gw / this.gh;
         $(".node_parent").remove();
-        //$("#show_map").empty();
         for(let x=1;x<=this.gw;x++) {
             for(let y=1;y<=this.gh;y++) {
                 let dot_id = x + "_" + y;
@@ -386,11 +382,12 @@ class showMap {
                     this.face_names[ls] = p_id + "|" + ld[k];
                 }
             }
-            $("#show_map").append(this.panels[p_id].obj);
-            $("#show_map").append(this.panels[p_id].use_obj);
-            $("#show_map").append(this.panels[p_id].selector_obj);
-            $("#show_map").append(this.panels[p_id].face_selector_a_obj);
-            $("#show_map").append(this.panels[p_id].face_selector_b_obj);
+            let show_map = this.allocator.map_dom;
+            $(show_map).append(this.panels[p_id].obj);
+            $(show_map).append(this.panels[p_id].use_obj);
+            $(show_map).append(this.panels[p_id].selector_obj);
+            $(show_map).append(this.panels[p_id].face_selector_a_obj);
+            $(show_map).append(this.panels[p_id].face_selector_b_obj);
         }
         $("#"+a.x+"_"+a.y+"_ring").hide();
         $("#"+b.x+"_"+b.y+"_ring").hide();
@@ -600,7 +597,6 @@ class panelLogic {
             $(a_ul).append(a_li);
         }
         $(assigned_dom).append(a_ul);
-        //$("#artist_list").append(assigned.join(", "))
     }
     shadeSection(id,type="section") {
         // Type could also be artist or face
@@ -665,8 +661,8 @@ class panelLogic {
         }
         if(artist_id!==false) {
             // Manually shade the artist name in the key.
-            $("#"+artist_id+"_a_key").css({"font-weight":"bold"});
-            $("#"+artist_id+"_u_key").css({"font-weight":"bold"});
+            $(this.map.allocator.artists.assigned).find("#"+artist_id+"_a_key").css({"font-weight":"bold"});
+            $(this.map.allocator.artists.unassigned).find("#"+artist_id+"_u_key").css({"font-weight":"bold"});
         }
         let pm = this.map;
         for(let k in this.assignments) {
@@ -681,13 +677,13 @@ class panelLogic {
                     if(k===artist_id) {
                         console.log(k,kv,ps,rmid);
                         $(kv).css(rmid,"var(--selected-artist)");
-                        $("#"+k+"_a_key").css({"font-weight":"bold"});
-                        $("#"+k+"_u_key").css({"font-weight":"bold"});
+                        $(this.map.allocator.artists.assigned).find("#"+k+"_a_key").css({"font-weight":"bold"});
+                        $(this.map.allocator.artists.unassigned).find("#"+k+"_u_key").css({"font-weight":"bold"});
                     }
                     else {
                         $(kv).css(rmid,"var(--selected-border)");
-                        $("#"+k+"_a_key").css({"font-weight":"normal"});
-                        $("#"+k+"_u_key").css({"font-weight":"normal"});
+                        $(this.map.allocator.artists.assigned).find("#"+k+"_a_key").css({"font-weight":"normal"});
+                        $(this.map.allocator.artists.unassigned).find("#"+k+"_u_key").css({"font-weight":"normal"});
                     }
                 }
                 
