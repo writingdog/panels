@@ -36,11 +36,8 @@ class showMap {
         this.o_y = this.dh / (this.gh+1);
         let p = this.allocator.map_dom;
         let c = this.allocator.container_top;
-        //$("#show_map_container").css({"width":this.dw,"height":this.dh});
         $(p).css({"width":this.dw,"height":this.dh});
         $(c).css({"height":this.dh});
-        //$(c).css({"width":this.dw,"height":this.dh});
-        //$("#show_map")
         this.addDots();
     }
     dotDraw() {
@@ -54,7 +51,6 @@ class showMap {
     addDots() {
         let m = this.gw / this.gh;
         $(".node_parent").remove();
-        //$("#show_map").empty();
         for(let x=1;x<=this.gw;x++) {
             for(let y=1;y<=this.gh;y++) {
                 let dot_id = x + "_" + y;
@@ -386,11 +382,12 @@ class showMap {
                     this.face_names[ls] = p_id + "|" + ld[k];
                 }
             }
-            $("#show_map").append(this.panels[p_id].obj);
-            $("#show_map").append(this.panels[p_id].use_obj);
-            $("#show_map").append(this.panels[p_id].selector_obj);
-            $("#show_map").append(this.panels[p_id].face_selector_a_obj);
-            $("#show_map").append(this.panels[p_id].face_selector_b_obj);
+            let show_map = this.allocator.map_dom;
+            $(show_map).append(this.panels[p_id].obj);
+            $(show_map).append(this.panels[p_id].use_obj);
+            $(show_map).append(this.panels[p_id].selector_obj);
+            $(show_map).append(this.panels[p_id].face_selector_a_obj);
+            $(show_map).append(this.panels[p_id].face_selector_b_obj);
         }
         $("#"+a.x+"_"+a.y+"_ring").hide();
         $("#"+b.x+"_"+b.y+"_ring").hide();
@@ -600,7 +597,6 @@ class panelLogic {
             $(a_ul).append(a_li);
         }
         $(assigned_dom).append(a_ul);
-        //$("#artist_list").append(assigned.join(", "))
     }
     shadeSection(id,type="section") {
         // Type could also be artist or face
@@ -665,8 +661,8 @@ class panelLogic {
         }
         if(artist_id!==false) {
             // Manually shade the artist name in the key.
-            $("#"+artist_id+"_a_key").css({"font-weight":"bold"});
-            $("#"+artist_id+"_u_key").css({"font-weight":"bold"});
+            $(this.map.allocator.artists.assigned).find("#"+artist_id+"_a_key").css({"font-weight":"bold"});
+            $(this.map.allocator.artists.unassigned).find("#"+artist_id+"_u_key").css({"font-weight":"bold"});
         }
         let pm = this.map;
         for(let k in this.assignments) {
@@ -681,13 +677,13 @@ class panelLogic {
                     if(k===artist_id) {
                         console.log(k,kv,ps,rmid);
                         $(kv).css(rmid,"var(--selected-artist)");
-                        $("#"+k+"_a_key").css({"font-weight":"bold"});
-                        $("#"+k+"_u_key").css({"font-weight":"bold"});
+                        $(this.map.allocator.artists.assigned).find("#"+k+"_a_key").css({"font-weight":"bold"});
+                        $(this.map.allocator.artists.unassigned).find("#"+k+"_u_key").css({"font-weight":"bold"});
                     }
                     else {
                         $(kv).css(rmid,"var(--selected-border)");
-                        $("#"+k+"_a_key").css({"font-weight":"normal"});
-                        $("#"+k+"_u_key").css({"font-weight":"normal"});
+                        $(this.map.allocator.artists.assigned).find("#"+k+"_a_key").css({"font-weight":"normal"});
+                        $(this.map.allocator.artists.unassigned).find("#"+k+"_u_key").css({"font-weight":"normal"});
                     }
                 }
                 
@@ -1382,6 +1378,7 @@ class serialize {
         this.parent_type = args.hasOwnProperty("type") ? args.type : false;
         this.source = {"layout":"#layout_predef","artist":this.parent.map.allocator.load_src};
         this.deserializer = args.hasOwnProperty("deserializer") ? args.deserializer : false;
+        this.input = args.hasOwnProperty("input") ? document.getElementById("input") : false;
         if(this.deserializer!==false) {
             $(this.deserializer).on("click",{arg1:this},function(e) {
                 e.data.arg1.deserialize();
@@ -1426,6 +1423,45 @@ class serialize {
         //console.log(src);
     }
 
+    async deserializeCSV() {
+        if(this.input===false) {
+            // No file input type declared for this.
+            return;
+        }
+        let reader = new FileReader();
+        const parent = this;
+        reader.onload = () => { parent.parseCSV(reader.result); }
+        reader.readAsText(this.input[0].files[0]);
+        return true;
+    }
+    async parseCSV(raw_data) {
+        //console.log(parent);
+        
+        let csv_raw = raw_data.split(/[\n\r]/);
+        let csv_vals = [];
+        let csv_string = [];
+        for(let i=1;i<csv_raw.length;i++) {
+            let subvals = csv_raw[i].split(",");
+            if(subvals.length>1) {
+                //console.log(subvals)
+                let new_val = [];
+                new_val.push(subvals[0]);
+                new_val.push(parseInt(subvals[1]));
+                if(subvals.length>2) {
+                    if(subvals[2]!=="") {
+                        // This means the artist might have a wide panel.
+                        new_val.push("wide|"+subvals[2]);
+                    }
+                }
+                csv_vals.push(new_val);
+                csv_string.push(new_val.join("•"));
+            }
+        }
+        $(this.source[this.parent_type]).html(csv_string.join("\n"));
+        let loaded = await this.load(csv_vals);
+        return loaded;
+    }
+
     serialize(data="self",extended=false) {
         let src;
         console.log(data);
@@ -1460,6 +1496,12 @@ class serialize {
                         "labels":structuredClone(this.parent.map.panels[p].labels)
                     }
                 }
+                let download_el = document.createElement("a");
+                download_el.setAttribute("href","data:text/plain;charset=utf-8,"+encodeURIComponent(JSON.stringify(panel_layout)));
+                download_el.setAttribute("download","layout.json");
+                document.body.appendChild(download_el);
+                download_el.click();
+                document.body.removeChild(download_el);
                 console.log(panel_layout);
             }
         }
@@ -1797,6 +1839,7 @@ class allocator {
         let load_save = $("<div />",{"class":"button load_button","text":"Load/save"});
         let modify = $("<div />",{"class":"button load_button","text":"Modify layout"});
         let rename = $("<div />",{"class":"button load_button","text":"Modify labels"});
+        let save_layout = $("<div />",{"class":"button load_button","text":"Export layout as JSON"});
         let assign = $("<div />",{"class":"button","text":"Assign all artists"});
         let assign_single = $("<div />",{"class":"button","text":"Assigning artist: "});
         let unassign_single = $("<div />",{"class":"button","text":"Unassign all for artist"});
@@ -1808,6 +1851,7 @@ class allocator {
         $(control_container).append(load_save);
         $(control_container).append(modify);
         $(control_container).append(rename);
+        $(control_container).append(save_layout);
         $(control_container).append(assign);
         $(control_container).append(assign_single);
         $(control_container).append(unassign_single);
@@ -1848,7 +1892,9 @@ class allocator {
         let load = $("<div />",{"class":"allocator_side"});
         let load_text = $("<textarea />",{"class":"load_area"});
         let load_button = $("<div />",{"class":"button","css":{"margin-bottom":"1rem"},"text":"Load artists"});
+        let load_file = $("<input />",{"class":"button","css":{"margin-bottom":"1rem"},attr:{"type":"file"}});
         let save_button = $("<div />",{"class":"button","css":{"margin-bottom":"1rem"},"text":"Save current assignment"});
+        $(load).append(load_file);
         $(load).append(load_button);
         $(load).append(save_button);
         if($("#artist_predef_old")) {
@@ -1857,12 +1903,15 @@ class allocator {
         $(load).append(load_text);
         this.artist_loader = load;
         this.load_src = load_text;
+        this.file_loader = load_file;
         $(load).hide();
         t.append(load);
 
         // Bind event handlers for all buttons.
 
-        this.buttons = {"load_save":load_save,"modify":modify,"rename":rename,"assign":assign,"assign_single":assign_single,"recalculate":recalculate,"load":load_button,"save":save_button,"unassign_single":unassign_single};
+        $(this.file_loader).on("change",{arg1:allocator,arg2:"artist_loader"},function(e) { e.data.arg1.inputHandler(e.data.arg2); });
+
+        this.buttons = {"load_save":load_save,"modify":modify,"rename":rename,"assign":assign,"assign_single":assign_single,"recalculate":recalculate,"load":load_button,"save":save_button,"unassign_single":unassign_single,"save_layout":save_layout};
         for(let k in this.buttons) {
             $(this.buttons[k]).on("click",{arg1:allocator,arg2:k},function(e) { e.data.arg1.buttonHandler(e.data.arg2)});
         }
@@ -1870,12 +1919,29 @@ class allocator {
         return true;
     }
 
+    async inputHandler(b) {
+        if(b==="artist_loader") {
+            if(this.serializer.input!==false) {
+                this.mode = "normal";
+                $(this.artist_list).show();
+                $(this.artist_loader).hide();
+                let loaded = await this.serializer.deserializeCSV();
+                if(loaded===true) {
+                    console.log("Loaded from CSV");
+                    this.logic.buildSections();
+                    this.logic.assignAll();
+                    this.assignmentVisibility();
+                }
+            }
+        }
+    }
+
     async buttonHandler(b) {
         console.log(b);
         let b_obj = this.buttons[b];
         let b_rel = []; // Buttons to show along side this one if active.
         if(b=="modify") {
-            b_rel = ["rename","load_save","assign","assign_single","recalculate"];
+            b_rel = ["rename","load_save","assign","assign_single","recalculate","save_layout"];
             for(let k in b_rel) {
                 $(this.buttons[b_rel[k]]).hide();
             }
@@ -1892,6 +1958,7 @@ class allocator {
                 this.map.showDots();
                 $(".normal_key").hide();
                 $(".build_key").show();
+                $(this.buttons["save_layout"]).show();
                 $(this.buttons["rename"]).show();
                 $(b_obj).text("Done modifying");
             }
@@ -1931,7 +1998,7 @@ class allocator {
             this.logic.assignAll();
         }
         else if(b==="load_save") {
-            b_rel = ["rename","assign","assign_single","recalculate","modify"];
+            b_rel = ["rename","assign","assign_single","recalculate","modify","save_layout"];
             if(this.mode==="normal") {
                 this.mode = "load";
                 for(let k in b_rel) {
@@ -1958,6 +2025,11 @@ class allocator {
                 this.assignmentVisibility();
             }
         }
+        else if(b==="save_layout") {
+            if(this.hasOwnProperty("layout_serializer")) {
+                this.layout_serializer.serialize("self");
+            }
+        }
         else if(b==="save") {
             this.serializer.serialize("self",true);
         }
@@ -1979,10 +2051,12 @@ class allocator {
             $(this.buttons["assign"]).hide();
             $(this.buttons["load_save"]).hide();
             $(this.buttons["modify"]).hide();
+            $(this.buttons["save_layout"]).hide();
         }
         else {
             $(this.buttons["load_save"]).show();
             $(this.buttons["modify"]).show();
+            $(this.buttons["save_layout"]).hide();
             $(this.buttons["assign_single"]).hide();
             $(this.buttons["unassign_single"]).hide();
             if(this.logic.needs_recalculation===false) {
